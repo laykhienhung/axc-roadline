@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roadline — Header by role (mockup)</title>
+<style>
+/* Tokens copied from src/client/styles.css :root (CRT arcade theme) */
+:root{color-scheme:dark;--bg:#0f1320;--surface:#161b2e;--surface-2:#131931;--line:#2d3558;--line-soft:#222a47;--line-strong:#3f4a78;--text:#d7e0ff;--text-2:#b3bde6;--muted:#8b95c0;--faint:#56608c;--ink:#7dff9b;--on-ink:#0f1320;--chip:#222a47;
+--s-on_track-fg:#7dff9b;--s-on_track-bg:#15332a;--s-done-fg:#8dbcff;--s-done-bg:#172a4d;--s-not_started-fg:#b3bde6;--s-not_started-bg:#262d4a;
+--font-body:'Cascadia Mono',Consolas,ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 var(--font-body);color:var(--text);background:var(--bg)}
+h1,h2{margin:0;font-weight:600}
+.muted{color:var(--muted)}.small{font-size:12px}.spacer{flex:1}.mono{font-family:var(--font-body)}
+/* existing: .app-header .brand .wordmark .divider .plan-meta .btn .btn.primary .card .badge .tone-* .empty-state .drop */
+.app-header{height:64px;padding:0 32px;display:flex;align-items:center;gap:20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;flex:none}
+.wordmark{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.divider{width:1px;height:28px;background:var(--line);flex:none}
+.plan-meta{display:flex;flex-direction:column;min-width:0}
+.plan-meta h1{font-size:15px}
+.plan-meta small{color:var(--muted);font-size:12px}
+/* NEW: keep header one line */
+.plan-meta{flex:1 1 auto}.plan-meta h1,.plan-meta small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-chip,.readonly{flex:none;white-space:nowrap}
+@media (max-width:900px){.user-chip .name{display:none}.readonly .lbl{display:none}}
+.btn{height:40px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font:500 14px var(--font-body);cursor:pointer;white-space:nowrap}
+.btn.primary{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.card{background:var(--surface);border:1px solid var(--line)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:2px 9px;white-space:nowrap}
+.tone-on_track{background:var(--s-on_track-bg);color:var(--s-on_track-fg)}
+.tone-done{background:var(--s-done-bg);color:var(--s-done-fg)}
+.tone-not_started{background:var(--s-not_started-bg);color:var(--s-not_started-fg)}
+main{padding:28px 32px 32px;display:flex;flex-direction:column;gap:24px}
+.empty-state{align-self:center;width:100%;max-width:920px;padding:28px 0;display:flex;flex-direction:column;gap:24px}
+.empty-state h2{font-size:40px;font-weight:500;letter-spacing:-.015em}
+.empty-state .intro{margin:8px 0 0;max-width:640px;font-size:16px;line-height:1.6;color:var(--text-2)}
+.drop{background:var(--surface);border:2px dashed var(--line-strong);padding:48px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.drop .ico{width:64px;height:64px;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.drop b{font-size:18px}.drop small{color:var(--muted);font-size:13px}
+
+/* NEW: user chip + menu */
+.user{position:relative}
+.user-chip{height:40px;padding:0 10px 0 4px;display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font:500 13px var(--font-body);cursor:pointer}
+.avatar{width:30px;height:30px;background:var(--chip);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
+.caret{color:var(--muted)}
+.menu{position:absolute;right:0;top:46px;width:280px;padding:14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5}
+.menu .who{display:flex;gap:10px;align-items:center}
+.menu .who div{display:flex;flex-direction:column;min-width:0}
+.menu .who small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.menu .role{font-size:12px;color:var(--text-2);border-top:1px solid var(--line-soft);padding-top:10px}
+.menu .btn{width:100%}
+.readonly{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+
+/* mockup scaffolding only */
+.state-label{margin:40px 32px 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);border-bottom:1px dashed var(--line);padding-bottom:6px}
+.mock-intro{margin:24px 32px 0;color:var(--muted)}
+.frame{border:1px solid var(--line-soft);margin:0 32px}
+.pad-menu{height:250px}
+</style>
+</head>
+<body>
+<p class="mock-intro">Mockup — roadline-auth · app header by role (timeline and target pages share it) + viewer empty state. Header from <code>src/client/components/app-header.tsx</code>; the new user chip sits at the far right, after the page's actions.</p>
+
+<!-- ============ A: Editor header ============ -->
+<div class="state-label">A · Editor — Import workbook + user chip</div>
+<div class="frame">
+<header class="app-header">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div class="divider"></div>
+  <div class="plan-meta"><h1>AXC Team Objectives &amp; Action Plan</h1><small>Sep 2026 – Aug 2027 · from AXC_Team_Objectives_ActionPlan_FY2026-2027.xlsx · updated 28 Sep 2026 14:02</small></div>
+  <div class="spacer"></div>
+  <button class="btn primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M20 21H4"/></svg>Import workbook</button>
+  <div class="user">
+    <button class="user-chip" aria-label="Account: Hung Lay (Editor)"><span class="avatar">HL</span><span class="name">Hung Lay</span> <span class="badge tone-on_track">Editor</span><span class="caret">▾</span></button>
+  </div>
+</header>
+</div>
+
+<!-- ============ B: Viewer header ============ -->
+<div class="state-label">B · Viewer — no Import button, "Read-only" hint instead</div>
+<div class="frame">
+<header class="app-header">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div class="divider"></div>
+  <div class="plan-meta"><h1>AXC Team Objectives &amp; Action Plan</h1><small>Sep 2026 – Aug 2027 · from AXC_Team_Objectives_ActionPlan_FY2026-2027.xlsx · updated 28 Sep 2026 14:02</small></div>
+  <div class="spacer"></div>
+  <span class="readonly"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">Read-only</span></span>
+  <div class="user">
+    <button class="user-chip" aria-label="Account: Minh Tran (Viewer)"><span class="avatar">MT</span><span class="name">Minh Tran</span> <span class="badge tone-not_started">Viewer</span><span class="caret">▾</span></button>
+  </div>
+</header>
+</div>
+
+<!-- ============ C: menu open ============ -->
+<div class="state-label">C · User menu open (click chip; Esc / outside click closes)</div>
+<div class="frame pad-menu">
+<header class="app-header">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div class="divider"></div>
+  <div class="plan-meta"><h1>AXC Team Objectives &amp; Action Plan</h1><small>Sep 2026 – Aug 2027 · updated 28 Sep 2026 14:02</small></div>
+  <div class="spacer"></div>
+  <span class="readonly">Read-only</span>
+  <div class="user">
+    <button class="user-chip" aria-expanded="true"><span class="avatar">MT</span><span class="name">Minh Tran</span> <span class="badge tone-not_started">Viewer</span><span class="caret">▴</span></button>
+    <div class="card menu" role="menu">
+      <div class="who"><span class="avatar">MT</span><div><b>Minh Tran</b><small>minh.tran@cyberlogitec.com</small></div></div>
+      <div class="role">Viewer — you can view the plan. Ask an editor (AXC Lead / Coordinator) to import a new workbook.</div>
+      <button class="btn" role="menuitem">Sign out</button>
+    </div>
+  </div>
+</header>
+</div>
+
+<!-- ============ D: Viewer + no plan ============ -->
+<div class="state-label">D · Viewer, no plan imported yet — no drop zone, no file picker</div>
+<div class="frame">
+<header class="app-header">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div class="divider"></div>
+  <div class="plan-meta"><h1>AXC Action Plan</h1></div>
+  <div class="spacer"></div>
+  <span class="readonly">Read-only</span>
+  <div class="user"><button class="user-chip"><span class="avatar">MT</span><span class="name">Minh Tran</span> <span class="badge tone-not_started">Viewer</span><span class="caret">▾</span></button></div>
+</header>
+<main>
+  <section class="empty-state" aria-label="No plan loaded">
+    <div>
+      <h2>No plan loaded yet</h2>
+      <p class="intro">An editor hasn't imported the team's objectives &amp; action-plan workbook yet. Once they do, the timeline shows up here for everyone.</p>
+    </div>
+    <div class="drop" style="border-style:solid">
+      <span class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b95c0" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>
+      <b>Ask an editor to import the workbook</b>
+      <small>Editors: AXC Lead, Coordinator. Only editors can import or replace the plan.</small>
+    </div>
+  </section>
+</main>
+</div>
+
+<!-- ============ E: Editor + no plan (unchanged) ============ -->
+<div class="state-label">E · Editor, no plan — existing v2 empty state unchanged (drop zone + Choose file…)</div>
+<p class="mock-intro" style="margin-top:0">Same as <code>devspec/changes/roadline-v2/mockups/import.html</code> empty state. Not redrawn.</p>
+<div style="height:60px"></div>
+</body>
+</html>

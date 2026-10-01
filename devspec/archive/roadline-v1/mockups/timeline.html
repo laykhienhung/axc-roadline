@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadline – Timeline (mockup)</title>
+<style>
+  /* Tokens + component classes copied from src/client/styles.css */
+  :root{
+    --bg:#f6f7f9; --surface:#fff; --line:#e3e6eb; --text:#1d2330; --muted:#6b7280;
+    --accent:#2f5bea; --now:#fff7e6; --now-line:#f5c56b;
+    --s-not_started:#9aa1ad; --s-on_track:#16a34a; --s-at_risk:#d97706; --s-behind:#dc2626; --s-done:#2563eb;
+    --next:#f3f4f8;
+    --r:8px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--text);background:var(--bg)}
+  a{color:inherit;text-decoration:none}
+  h2{margin:0;font-size:15px}
+  .mock-note{background:#fff8db;border-bottom:1px solid #f0e2a0;padding:6px 16px;font-size:12px;color:#6b5a00}
+  .app-header{display:flex;align-items:center;gap:16px;padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .app-header h1{margin:0;font-size:16px} .app-header small{color:var(--muted)} .spacer{flex:1}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg button{border:0;background:var(--surface);padding:6px 14px;font:inherit;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--accent);color:#fff}
+  .btn{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 14px;font:inherit;cursor:pointer;color:var(--text)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  main{max-width:1400px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:24px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+  .dot.sm{width:8px;height:8px}
+  .bg-not_started{background:var(--s-not_started)} .bg-on_track{background:var(--s-on_track)} .bg-at_risk{background:var(--s-at_risk)} .bg-behind{background:var(--s-behind)} .bg-done{background:var(--s-done)}
+  .fg-not_started{color:var(--s-not_started)} .fg-on_track{color:var(--s-on_track)} .fg-at_risk{color:var(--s-at_risk)} .fg-behind{color:var(--s-behind)} .fg-done{color:var(--s-done)}
+  .st-lbl{font-size:12px;font-weight:600}
+  .legend{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .legend b{color:var(--text)} .legend span{display:inline-flex;align-items:center;gap:6px} .legend .note{margin-left:auto}
+  .legend .words{color:var(--muted)}
+  .next{padding:16px 20px}
+  .next-h{display:flex;align-items:baseline;gap:12px;margin-bottom:8px} .next-h small{color:var(--muted)}
+  .next ol{margin:0;padding:0;list-style:none}
+  .next li a{display:flex;gap:12px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+  .next li:first-child a{border-top:0}
+  .next .t{flex:1;min-width:0} .next .d{color:var(--muted);font-size:13px;white-space:nowrap}
+  .grid{display:grid;grid-template-columns:220px repeat(var(--cols),minmax(90px,1fr));overflow-x:auto}
+  .hd{padding:10px 12px;font-weight:600;border-bottom:1px solid var(--line);border-left:1px solid var(--line);background:#fafbfc}
+  .hd small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .hd.now{background:var(--now);border-bottom:2px solid var(--now-line)}
+  .hd.first{border-left:0}
+  .hd.ny{background:var(--next);border-left:2px dashed #cfd4dc}
+  .topic{padding:14px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+  .topic b{display:flex;align-items:center;gap:8px}
+  .topic small{color:var(--muted);font-size:12px}
+  .topic .go{color:var(--accent);font-size:12px;margin-top:4px}
+  .cell{padding:10px 12px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);font-size:13px;min-width:0;overflow-wrap:break-word;hyphens:auto}
+  .cell.now{background:var(--now)}
+  .cell.ny{background:var(--next);border-left:2px dashed #cfd4dc;color:#4b5563}
+  .cell ul{margin:0;padding:0;list-style:none}
+  .cell li{margin:2px 0;display:flex;gap:6px;align-items:baseline}
+  .cell li .tx{min-width:0}
+  .cell .count{font-size:12px;color:var(--muted);margin-bottom:4px}
+  .cell .empty{color:#c0c5cd}
+  /* new: import notes */
+  .notes{display:flex;flex-direction:column;gap:8px}
+  .note-line{display:flex;gap:10px;align-items:flex-start;font-size:13px;border-radius:6px;padding:8px 12px;border:1px solid var(--line);background:var(--surface)}
+  .note-line.info{color:#374151}
+  .note-line.warn{background:#fffbeb;border-color:#f5c56b;color:#7a4b00}
+  .note-line .x{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
+  .note-line code{background:#f3f4f6;padding:0 4px;border-radius:3px}
+  .states-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:8px}
+  .lbl{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="mock-note">MOCKUP · screen 2/3 · Timeline after importing template v2.1 with saved mappings · real data from <b>[AXC] … FY2026-2027 (1).xlsx</b> · today = 29 Sep 2026 · new: <b>Next year</b> column, grouped legend, import notes</div>
+
+<header class="app-header">
+  <div><h1>AI Transformation Team (AXC) · FY2026-27</h1><small>Sep 2026 – Aug 2027 · data from [AXC] AXC_…FY2026-2027 (1).xlsx · updated 29 Sep 2026 10:12</small></div>
+  <div class="spacer"></div>
+  <div class="seg"><button class="on">Month</button><button>Quarter</button></div>
+  <button class="btn primary">Import…</button>
+</header>
+
+<main>
+  <div class="notes" aria-label="Import notes">
+    <div class="note-line info">ⓘ <span>Applied saved mappings: <b>In progress</b> → On track · <b>FY27-28</b> → Next year</span><button class="x" title="Dismiss">×</button></div>
+    <div class="note-line warn">⚠ <span>Template version <b>2.1</b> is newer than tested <b>2.0</b>. Shown once for this version.</span><button class="x" title="Dismiss">×</button></div>
+  </div>
+
+  <section class="card next">
+    <div class="next-h"><h2>Next actions</h2><small>Q1 · 10 open this quarter · 14 moved to next year</small></div>
+    <ol id="next"></ol>
+  </section>
+
+  <section class="card">
+    <div class="legend" id="legend"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <div class="states-title">Other states</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+    <div class="card" style="padding:16px"><span class="lbl">Built-in words only</span><span class="muted" style="font-size:13px;color:var(--muted)">No import notes at all. The legend shows only the 5 standard words.</span></div>
+    <div class="card" style="padding:16px"><span class="lbl">Same v2.1 file imported again</span><span style="font-size:13px;color:var(--muted)">Only the grey “Applied saved mappings” line. The version warning is not repeated.</span></div>
+    <div class="card" style="padding:16px"><span class="lbl">No next-year actions</span><span style="font-size:13px;color:var(--muted)">No “Next year” column; the grid ends at Aug, as before.</span></div>
+  </div>
+</main>
+
+<script>
+const T=[["T1","Apply AI to Everyday Work",0.34,"AI Specialist","On track"],["T2","Drive Adoption Across Teams",0.3,"Coordinator","On track"],["T3","AI Management",0.28,"AXC Lead + Coordinator","On track"],["T4","Track & Share New AI",0.08,"AI Specialist + Coordinator","On track"]];
+const A=[["T1","Q1","Nov","Process inventory + needs survey",""],["T1","Q1","Nov","1 workflow live","Done"],["T1","Q1","Nov","CV screening workflow in use","Done"],["T1","Q2","Feb","CV screening used across the HR office","In progress"],["T1","Q2","Feb","1 workflow live",""],["T1","Q2","Feb","Usage tracking live",""],["T1","Q3","May","1 workflow live",""],["T1","FY27-28","NY","Feedback log + changes made",""],["T1","Q4","Aug","Impact measurement",""],["T1","Q4","Aug","1 workflow live",""],["T1","FY27-28","NY","Retirement decisions",""],["T1","Q4","Aug","Value report",""],["T1","Q2","Feb","1 asset released",""],["T1","Q3","May","2 assets released",""],["T1","FY27-28","NY","2 teams using shared assets",""],["T1","FY27-28","NY","2 assets released",""],["T1","FY27-28","NY","Pilot running",""],["T1","FY27-28","NY","Assessment note",""],["T1","FY27-28","NY","6 assets released across the year",""],["T2","Q1","Nov","Group map + contact list",""],["T2","Q1","Nov","Two groups running",""],["T2","ongoing","quarterly","Session records","In progress"],["T2","Q3","May","3 groups engaged",""],["T2","Q2","Feb","Joint use cases running","In progress"],["T2","FY27-28","NY","Champion network running",""],["T2","FY27-28","NY","4 groups engaged",""],["T2","Q4","Aug","Checklist adopted by 2 groups",""],["T2","FY27-28","NY","Checklist adopted by 3 groups",""],["T2","Q4","Aug","Review + survey results",""],["T2","Q1","Nov","Baseline results",""],["T2","Q1","Nov","Training materials v1.0","Done"],["T2","Q1","Nov","Training plan agreed with HR",""],["T2","Q2","Feb","Pilot delivered",""],["T2","Q3","May","Basic level running company-wide",""],["T2","Q3","May","3 internal trainers",""],["T2","FY27-28","NY","Applied level running",""],["T2","FY27-28","NY","Trainers delivering",""],["T2","Q4","Aug","Usage check after training",""],["T2","ongoing","quarterly","Session log + modules",""],["T2","Q4","Aug","Training review + curriculum v2.0",""],["T3","Q1","Nov","Account inventory","In progress"],["T3","Q1","Nov","Allocation standard approved","In progress"],["T3","Q2","Feb","Data rule approved",""],["T3","Q2","Feb","Registry live",""],["T3","Q3","May","Review step + named owner, first project",""],["T3","Q3","May","Agreed criteria document","In progress"],["T3","Q4","Aug","Review step in all assessed projects",""],["T3","Q3","May","Unused accounts taken back + data-rule check",""],["T3","ongoing","monthly","12 monthly reports",""],["T3","Q4","Aug","Budget proposal",""],["T3","Q2","Feb","AML framework v1.1 + guide",""],["T3","Q1","Nov","AML baseline for 3 projects","Done"],["T3","Q2","Feb","AML dashboard live",""],["T3","Q3","May","Action plan per project",""],["T3","Q3","May","AML running in all projects",""],["T3","FY27-28","NY","Round 2 results",""],["T3","FY27-28","NY","Control remediation",""],["T3","Q4","Aug","Year-end results",""],["T3","Q4","Aug","AML progress report",""],["T4","Q2","Feb","Tools view published",""],["T4","Q2","Feb","Channel + archive live",""],["T4","Q2","Feb","Research index: public / internal",""],["T4","ongoing","monthly","Regular posts","In progress"],["T4","ongoing","quarterly","Session records",""],["T4","Q3","May","Try-out notes",""],["T4","Q4","Aug","Year-end view + feedback",""]];
+// mapping: file word → tone (built-in words map to themselves)
+const TONE={'':'not_started','Not started':'not_started','On track':'on_track','In progress':'on_track','At risk':'at_risk','Behind':'behind','Blocked':'behind','Done':'done'};
+const label=w=>w||'Not started';
+const M=['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
+const Qs=['Q1','Q1','Q1','Q2','Q2','Q2','Q3','Q3','Q3','Q4','Q4','Q4'];
+
+// legend grouped by tone, listing the file words seen
+const tones=[['not_started','Not started'],['on_track','On track'],['at_risk','At risk'],['behind','Behind'],['done','Done']];
+const seen={};A.forEach(a=>{const t=TONE[a[4]];(seen[t]=seen[t]||new Set()).add(label(a[4]))});T.forEach(t=>seen[TONE[t[4]]].add(t[4]));
+document.getElementById('legend').innerHTML='<b>Status</b>'+tones.map(([k,l])=>{const extra=[...(seen[k]||[])].filter(w=>w!==l);return `<span><i class="dot sm bg-${k}"></i>${l}${extra.length?` <span class="words">(${extra.join(', ')})</span>`:''}</span>`}).join('')+'<span class="note">▎ colored cell edge = has an At risk / Behind topic · ┆ Next year = not in this year’s progress</span>';
+
+document.getElementById('next').innerHTML=[
+ ['T3','Publish the monthly usage and cost report','','↻ due 30 Sep'],
+ ['T4','Post new AI tools and tricks to the channel','In progress','↻ due 30 Sep'],
+ ['T1','Inventory candidate processes and survey pain points, ESG and LSG first','','due Nov'],
+ ['T2','Map every group and project, agree one named contact per group','','due Nov'],
+ ['T2','Kick off with ESG and LSG','','due Nov'],
+].map(([t,x,s,d])=>`<li><a href="#"><span class="dot bg-${TONE[s]}"></span><b>${t}</b><span class="t">${x}</span><span class="st-lbl fg-${TONE[s]}">${label(s)}</span><span class="d">${d}</span></a></li>`).join('');
+
+const cols=M.map((m,i)=>({k:m,label:m,sub:(i===0?'now · ':'')+Qs[i],now:i===0}));
+cols.push({k:'NY',label:'Next year',sub:'FY27-28',ny:true});
+const g=document.getElementById('grid');g.style.setProperty('--cols',cols.length);
+let h='<div class="hd first">Target</div>'+cols.map(c=>`<div class="hd ${c.now?'now':''} ${c.ny?'ny':''}">${c.label}<small>${c.sub}</small></div>`).join('');
+T.forEach(([id,name,w,owner,st])=>{
+  const acts=A.filter(a=>a[0]===id), thisYear=acts.filter(a=>a[1]!=='FY27-28'), done=thisYear.filter(a=>a[4]==='Done').length, on=acts.filter(a=>a[1]==='ongoing').length, ny=acts.length-thisYear.length;
+  h+=`<a class="topic" href="#"><b><span class="dot bg-${TONE[st]}"></span>${id} · ${name}</b><small><span class="st-lbl fg-${TONE[st]}">${st}</span> · ${Math.round(w*100)}% · ${owner}</small><small>${done} / ${thisYear.length} done${on?' · ↻ '+on+' ongoing':''}${ny?' · '+ny+' next year':''}</small><span class="go">View detail →</span></a>`;
+  cols.forEach(c=>{
+    const items=acts.filter(a=>a[2]===c.k);
+    h+=`<a class="cell ${c.now?'now':''} ${c.ny?'ny':''}" href="#">${items.length?`<div class="count">${items.length} topic${items.length>1?'s':''}</div><ul>${items.map(a=>`<li title="${label(a[4])}"><i class="dot sm bg-${TONE[a[4]]}"></i><span class="tx">${a[3]}</span></li>`).join('')}</ul>`:'<span class="empty">—</span>'}</a>`;
+  });
+});
+g.innerHTML=h;
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadline – Target detail (mockup)</title>
+<style>
+  /* Tokens + component classes copied from src/client/styles.css */
+  :root{
+    --bg:#f6f7f9; --surface:#fff; --line:#e3e6eb; --text:#1d2330; --muted:#6b7280;
+    --accent:#2f5bea; --now:#fff7e6; --now-line:#f5c56b;
+    --s-not_started:#9aa1ad; --s-on_track:#16a34a; --s-at_risk:#d97706; --s-behind:#dc2626; --s-done:#2563eb;
+    --next:#f3f4f8;
+    --r:8px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--text);background:var(--bg)}
+  a{color:inherit;text-decoration:none}
+  .mock-note{background:#fff8db;border-bottom:1px solid #f0e2a0;padding:6px 16px;font-size:12px;color:#6b5a00}
+  .page-h{padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px}
+  .page-h a{color:var(--accent)} .page-h small{color:var(--muted)} .spacer{flex:1}
+  main{max-width:1100px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:20px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+  h1{margin:0;font-size:20px;display:flex;align-items:center;gap:10px}
+  h2{margin:0 0 10px;font-size:15px}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+  h1 .dot{width:12px;height:12px}
+  .bg-not_started{background:var(--s-not_started)} .bg-on_track{background:var(--s-on_track)} .bg-at_risk{background:var(--s-at_risk)} .bg-behind{background:var(--s-behind)} .bg-done{background:var(--s-done)}
+  .fg-on_track{color:var(--s-on_track)}
+  .facts{display:flex;gap:28px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:13px}
+  .facts b{display:block;color:var(--text);font-size:15px}
+  .facts small{display:block;color:var(--muted);font-size:12px}
+  .prog{height:6px;width:160px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}
+  .prog span{display:block;height:100%;background:var(--s-done)}
+  .obj{margin:14px 0 0;color:#374151}
+  .next-list li{margin:4px 0}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px;align-items:center}
+  .badges .words{font-size:12px;color:var(--muted);margin-right:6px}
+  .badge{font-size:12px;border-radius:10px;padding:1px 8px;white-space:nowrap;color:#fff}
+  .q{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .q:first-of-type{border-top:0;margin-top:0;padding-top:0}
+  .q h3{margin:0 0 8px;font-size:14px;display:flex;gap:8px;align-items:baseline}
+  .q h3 small{color:var(--muted);font-weight:400}
+  .now-tag{font-size:11px;background:var(--now);border:1px solid var(--now-line);border-radius:10px;padding:0 8px;color:#8a5a00;font-weight:400}
+  .ny-tag{font-size:11px;background:var(--next);border:1px dashed #cfd4dc;border-radius:10px;padding:0 8px;color:#4b5563;font-weight:400}
+  .q.ny{background:var(--next);border:1px dashed #cfd4dc;border-radius:var(--r);padding:14px;margin-top:18px}
+  .q.ny .hint{margin:-4px 0 8px;font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.n{color:var(--muted);width:32px}
+  td .sub{color:var(--muted);font-size:12px}
+  details{border-top:1px solid var(--line);padding:12px 0}
+  details:first-of-type{border-top:0;padding-top:0}
+  summary{cursor:pointer;font-weight:600}
+  details ol{margin:8px 0 0;padding-left:20px;color:#374151}
+  .states-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="mock-note">MOCKUP · screen 3/3 · Target detail after importing template v2.1 · real T1 data from <b>[AXC] … FY2026-2027 (1).xlsx</b> · today = 29 Sep 2026 · new: file's own status words, grouped badge legend, <b>Next year</b> block, this-year progress</div>
+
+<header class="page-h">
+  <a href="timeline.html">← Back to timeline</a>
+  <div class="spacer"></div>
+  <small>AI Transformation Team (AXC) · FY2026-27</small>
+</header>
+
+<main>
+  <section class="card">
+    <h1><span class="dot bg-on_track" title="On track"></span>T1 · Apply AI to Everyday Work</h1>
+    <div class="facts">
+      <div>Weight<b>34%</b></div>
+      <div>Owner<b>AI Specialist</b></div>
+      <div>Status<b class="fg-on_track">On track</b></div>
+      <div>Progress<b>2 / 12 done</b><div class="prog"><span style="width:16.7%"></span></div><small>this year · 7 more next year</small></div>
+    </div>
+    <p class="obj">Put existing AI tools to work in everyday tasks, together with the shared setup underneath them. Automation tools take routine work off each team's hands; the template library stops every team solving the same problem from scratch.</p>
+  </section>
+
+  <section class="card">
+    <h2>Next for this target</h2>
+    <ol class="next-list">
+      <li><b>Process inventory + needs survey</b> — AI Specialist · due Nov 2026</li>
+      <li><b>CV screening used across the HR office</b> — AI Specialist · due Feb 2027 · <span class="fg-on_track" style="font-weight:600">In progress</span></li>
+      <li><b>1 workflow live</b> — AI Specialist · due Feb 2027</li>
+    </ol>
+    <p style="margin:6px 0 0;font-size:12px;color:var(--muted)">Next-year actions are never listed here.</p>
+  </section>
+
+  <section class="card">
+    <h2>Action plan</h2>
+    <div class="badges">
+      <span class="badge bg-not_started">Not started</span>
+      <span class="badge bg-on_track">On track</span><span class="words">(In progress)</span>
+      <span class="badge bg-at_risk">At risk</span>
+      <span class="badge bg-behind">Behind</span>
+      <span class="badge bg-done">Done</span>
+    </div>
+    <div id="plan"></div>
+  </section>
+
+  <section class="card">
+    <details open><summary>What this must achieve</summary><ol><li>Confirm what each team actually needs before building anything for them.</li><li>…</li></ol></details>
+    <details><summary>How we will do it</summary></details>
+    <details><summary>Depends on</summary></details>
+    <details><summary>Risks</summary></details>
+    <details><summary>Change history</summary></details>
+  </section>
+
+  <div class="states-title">Other states</div>
+  <section class="card" style="font-size:13px;color:var(--muted)">
+    <b style="color:var(--text)">Target with no next-year actions</b> — no “Next year” block; progress line has no “more next year” note (e.g. T4: <b style="color:var(--text)">0 / 7 done</b>).
+  </section>
+</main>
+
+<script>
+const A=[[1,"Q1","Inventory candidate processes across all teams and survey duties and pain points, ESG and LSG first","Process inventory + needs survey","Every team in scope covered","AI Specialist","Nov 2026",""],[2,"Q1","Set up the first workflow (Jira > Google Chat > Sheet)","1 workflow live","Started only after the using team confirmed the need and a utilization plan","AI Specialist","Nov 2026","Done"],[3,"Q1","Set up the second workflow: CV screening for HR","CV screening workflow in use","","AI Specialist","Nov 2026","Done"],[4,"Q2","Roll out the CV screening workflow to the whole HR office","CV screening used across the HR office","8 out of 10 incoming CVs processed through the tool","AI Specialist","Feb 2027","In progress"],[5,"Q2","Deliver the third workflow","1 workflow live","Same needs-confirmed gate as the first","AI Specialist","Feb 2027",""],[6,"Q2","Track weekly use of every live workflow","Usage tracking live","8 in 10 target users active at least weekly, one month after launch","AI Specialist","Feb 2027",""],[7,"Q3","Deliver the fourth workflow","1 workflow live","","AI Specialist","May 2027",""],[8,"FY27-28","Run a feedback round on every running workflow and act on what comes back","Feedback log + changes made","At least one round per workflow per quarter","AI Specialist","Next year",""],[9,"Q4","Measure time saved on the processes the workflows touch","Impact measurement","3 processes measurably 20% faster","AI Specialist","Aug 2027",""],[10,"Q4","Deliver the fifth workflow","1 workflow live","5 workflows in live use across the year, CV screening included","AI Specialist","Aug 2027",""],[11,"FY27-28","Review the whole set and retire anything that is not being used","Retirement decisions","9 in 10 workflows still in use three months after launch","AI Specialist","Next year",""],[12,"Q4","Produce the value report","Value report","Covers utilization, time saved and three-month survival of every tool","AI Specialist","Aug 2027",""],[13,"Q2","Release the shared prompt library as the first asset","1 asset released","","AI Specialist","Feb 2027",""],[14,"Q3","Release two more assets","2 assets released","3 assets released across the year, each used by at least one project","AI Specialist","May 2027",""],[15,"FY27-28","Onboard ESG and LSG as the first users of the catalog","2 teams using shared assets","","AI Specialist","Next year",""],[16,"FY27-28","Release two more assets","2 assets released","","AI Specialist","Next year",""],[17,"FY27-28","Pilot internal document search","Pilot running","Pilot only this year; production next year","AI Specialist","Next year",""],[18,"FY27-28","Assess multi-step AI agents for next year","Assessment note","Assessment only - piloting needs more capacity than we have this year","AI Specialist","Next year",""],[19,"FY27-28","Release the final asset","6 assets released across the year","4 projects using at least one asset, average reuse 2 projects per asset","AI Specialist","Next year",""]];
+const TONE={'':'not_started','In progress':'on_track','Done':'done'};
+const Q=[['Q1','Sep – Nov 2026'],['Q2','Dec 2026 – Feb 2027'],['Q3','Mar – May 2027'],['Q4','Jun – Aug 2027']];
+const table=rows=>`<table><tr><th>#</th><th>Action</th><th>Success measure</th><th>Owner</th><th>Due</th><th>Status</th></tr>${rows.map(a=>`<tr><td class="n">${a[0]}</td><td>${a[2]}<div class="sub">→ ${a[3]}</div></td><td>${a[4]||'—'}</td><td>${a[5]}</td><td>${a[6]}</td><td><span class="badge bg-${TONE[a[7]]}">${a[7]||'Not started'}</span></td></tr>`).join('')}</table>`;
+let h='';
+Q.forEach(([q,r],i)=>{const rows=A.filter(a=>a[1]===q);h+=`<div class="q"><h3>${q} <small>${r} · ${rows.length} actions</small>${i===0?'<span class="now-tag">now</span>':''}</h3>${table(rows)}</div>`});
+const ny=A.filter(a=>a[1]==='FY27-28');
+h+=`<div class="q ny"><h3>Next year <small>FY27-28 · ${ny.length} actions</small><span class="ny-tag">not in this year’s progress</span></h3><p class="hint">Mapped from quarter “FY27-28”.</p>${table(ny)}</div>`;
+document.getElementById('plan').innerHTML=h;
+</script>
+</body>
+</html>

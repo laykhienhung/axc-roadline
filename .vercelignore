@@ -1,0 +1,7 @@
+data/
+data.bak-*/
+dist/
+node_modules/
+.env
+devspec/
+tests/

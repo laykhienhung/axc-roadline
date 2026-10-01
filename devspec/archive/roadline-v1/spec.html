@@ -1,0 +1,815 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spec review · roadline-v1</title><style>
+body{margin:0;font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d2330;background:#f6f7f9}
+nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #e3e6eb;padding:10px 24px;display:flex;gap:16px;flex-wrap:wrap;z-index:2}
+nav b{margin-right:8px} nav a{color:#2f5bea;text-decoration:none;font-size:14px}
+main{max-width:1100px;margin:0 auto;padding:24px}
+section{background:#fff;border:1px solid #e3e6eb;border-radius:8px;padding:8px 28px 20px;margin-bottom:20px}
+h2{border-bottom:1px solid #e3e6eb;padding-bottom:6px} h3{margin-top:22px}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px} th,td{border:1px solid #e3e6eb;padding:6px 10px;text-align:left;vertical-align:top} th{background:#fafbfc}
+pre{background:#f3f4f6;padding:12px;border-radius:6px;overflow:auto;font-size:13px;line-height:1.4}
+code{background:#f3f4f6;padding:0 4px;border-radius:3px;font-size:.9em}
+.req{background:#e8eefe;color:#2f5bea;border-radius:4px;padding:0 6px;font-size:12px;font-weight:600}
+li.task{list-style:none;margin-left:-18px} .sec{color:#6b7280;font-size:13px}
+.layer small{color:#6b7280;font-weight:400}
+.ok{background:#e7f6ec;color:#166534;padding:10px 14px;border-radius:6px;font-weight:600}
+.bad{background:#fde2e2;color:#991b1b;padding:10px 14px;border-radius:6px;font-weight:600;margin-bottom:8px}
+.nc{color:#9aa1ad;font-style:italic} .note{color:#6b7280;font-size:13px}
+iframe{width:100%;height:720px;border:1px solid #e3e6eb;border-radius:6px}
+blockquote{border-left:3px solid #e3e6eb;margin:8px 0;padding-left:12px;color:#6b7280}
+details summary{cursor:pointer;font-weight:600;margin-top:16px}
+</style></head><body><nav><b>roadline-v1</b><a href="#context">Context</a><a href="#proposal">Proposal</a><a href="#architecture">Architecture</a><a href="#impact">Impact Area</a><a href="#backend">Backend</a><a href="#spec">Requirements (spec.md)</a><a href="#frontend">Frontend</a><a href="#tasks">Tasks by layer</a><a href="#coverage">Coverage</a><a href="#board">Board</a></nav><main><section id="context"><h2>Context</h2><table><tr><th>Change id</th><td><code>roadline-v1</code></td></tr><tr><th>Board</th><td>on <code>tasks.yml</code></td></tr><tr><th>Artifacts</th><td><code>proposal.md</code>, <code>design.md</code>, <code>spec.md</code>, <code>tasks.md</code>, <code>ui.md</code></td></tr></table></section><section id="proposal"><h2>Proposal</h2><h3>Why</h3>
+<p>The AXC team's FY2026-27 objectives and action plan (4 targets, 66–75 actions depending on the template version) live in a formatted Excel workbook. It is hard to see at a glance what happens when, and what the team should do next. The team wants a simple shared web page that shows the plan on a timeline, lets anyone drill into a target, and highlights the next actions.</p>
+<p>The template keeps changing (v2.1 added the action statuses "In progress" and "Blocked", and moved 14 actions to quarter "FY27-28" with due "Next year"). A strict import rejects such a file outright, so the page must adapt to new words instead of failing.</p>
+<h3>What it delivers</h3>
+<ul>
+<li><b>Import</b>: anyone with the link uploads the plan as <code>.xlsx</code> or <code>.csv</code> (AXC template). The server checks the layout; a file whose layout can't be read is rejected with a list of problems and the current plan stays.</li>
+<li><b>Adaptive import</b> *(revision 2)*: when a readable file contains words Roadline doesn't know (status, quarter or due values), a mapping dialog asks what each word means, pre-filled with suggestions. The choices are saved on the server and applied to every later import automatically. The words are collected from the rows and from the workbook's own dropdown lists.</li>
+<li><b>Timeline page</b> (<code>/</code>): targets as rows, months (default) or quarters (toggle) as columns across the fiscal year Sep 2026 – Aug 2027, plus a <b>Next year</b> column for actions moved to the following fiscal year. Each cell lists the topics (deliverables) with a status dot. The current period is highlighted.</li>
+<li><b>Next actions</b>: the top 5 open actions of this year — overdue and Behind/Blocked first, then by due date, target weight and order.</li>
+<li><b>Target detail page</b> (<code>/target/:id</code>): header (weight, owner, status, this-year progress, objective), the next 3 actions for that target, the action plan grouped by quarter plus a Next-year block, and collapsible sections (what this must achieve, how, depends on, risks, change history).</li>
+<li><b>Status colors</b>: five tones (Not started / On track / At risk / Behind / Done) with a legend that lists the file's own words under each tone. Color carries no other meaning.</li>
+<li><b>Import notes</b>: after an import, a note lists the saved mappings that were applied, and a one-time warning appears when the template version is newer than the tested one.</li>
+<li><b>Hosting</b>: one Node service on the internal server serving the API and the web page. No login.</li>
+</ul>
+<h3>Scope</h3>
+<p><b>In</b></p>
+<ul>
+<li>AXC workbook template (sheets <code>Executive Summary</code>, <code>T1..Tn</code>), <code>.xlsx</code> and a flat <code>.csv</code> (one row per action).</li>
+<li>Read-only viewing; one shared current plan; previous plan kept as a backup file.</li>
+<li>Value mappings stored in <code>data/mappings.json</code>, shared by everyone.</li>
+</ul>
+<p><b>Out</b></p>
+<ul>
+<li>Google Sheet URL / OAuth / scheduled auto-sync.</li>
+<li>Editing statuses or actions in the web page (the workbook stays the source of truth).</li>
+<li>A screen to review or edit saved mappings — edit <code>data/mappings.json</code> on the server instead.</li>
+<li>Mapping columns or sheet layout (only values are mapped; a changed layout is still an error).</li>
+<li>Meeting Log sheet, maturity-score charts, other teams' templates.</li>
+<li>Authentication / upload permissions (internal network, anyone with the link).</li>
+</ul>
+<h3>Success</h3>
+<ul>
+<li>Importing the v2.0 workbook shows 4 targets and 75 actions on the timeline, correctly placed by due month, with no dialog.</li>
+<li>Importing the v2.1 workbook opens the mapping dialog for "In progress", "Blocked" and "FY27-28" with suggestions; after applying, T1 shows <code>2 / 12 done · 7 next year</code>, the Next-year column lists 14 topics, and this year's progress totals 52 actions.</li>
+<li>Re-importing the v2.1 workbook imports straight away with only the "applied saved mappings" note.</li>
+<li>A workbook with a broken layout is rejected with row-level problems and the previous plan is still shown.</li>
+<li>On 28 Sep 2026 (v2.0) the next-actions list shows the monthly cost report (T3) first, then Q1 actions ranked by target weight.</li>
+</ul></section><section id="architecture"><h2>Architecture</h2><p class="note">Rendered as ASCII (archify not installed).</p><pre>Browser (anyone with the link)
+  React SPA ── GET  /api/plan ─────────────┐
+    TimelinePage  /                        │
+    TargetPage    /target/:id              ▼
+    ImportButton ─ POST /api/plan ──▶ Express (src/server)
+                    (multipart file)       │  upload guard (≤5 MB, .xlsx/.csv)
+                                           ▼
+                                   readGrid (SheetJS)  ─▶ { sheet: Cell[][] }
+                                           ▼
+                        parseAxcWorkbook | parseFlatCsv   (src/shared)
+                                           │ problems? ─▶ 400 {error, problems}  (plan untouched)
+                                           ▼ plan
+                                   PlanStore.save()  data/plan.json (+ plan.prev.json, uploads/)
+                                           ▼
+                                   200 { plan, warnings }
+
+Client-side derived views (src/shared, pure, `today` injected):
+  fiscal.ts (quarters, month columns, current period) · next-actions.ts · progress
+```
+
+One Node process serves the API and the built SPA (SPA fallback for `/target/*`).</pre></section><section id="impact"><h2>Impact Area</h2><h4>Decision Defaults</h4>
+<table><tr><th>Gray area</th><th>Default decision</th><th>Fallback if default doesn't fit</th></tr><tr><td>Next-actions ranking floods with one target (T1 has the highest weight)</td><td>Keep the pure ranking in this design (weight, then order)</td><td>— (change the rule later in a new change)</td></tr><tr><td>Test fixture</td><td>Copy the real workbook to <code>tests/fixtures/axc-fy2026-27.xlsx</code></td><td>If it's unavailable, build a synthetic workbook with the same layout in <code>tests/fixtures/build-fixture.ts</code></td></tr><tr><td>Due month outside the fiscal year</td><td>Problem → import rejected</td><td>—</td></tr><tr><td>Unknown status / quarter / due word *(revision 2 — replaces "unknown status → reject")*</td><td>Ask through the mapping dialog (422 <code>needs_mapping</code>)</td><td>—</td></tr><tr><td>Same word appears as target status and action status</td><td>One status mapping per word, shared by both</td><td>—</td></tr><tr><td>Word already mapped but the user submits a different meaning</td><td>Submitted mapping wins and overwrites the saved one</td><td>—</td></tr><tr><td>Dropdown list is a range reference or can't be read</td><td>Skip it silently; rows are still checked</td><td>—</td></tr><tr><td>Unmapped words only in a dropdown list, none in rows *(decided 2026-09-29 during build)*</td><td>Import proceeds without the dialog; the words are listed only when the dialog opens for a row word</td><td>—</td></tr><tr><td>Next fiscal-year label</td><td><code>FY</code> + last two digits of start year + 1 and + 2 (<code>FY27-28</code>)</td><td>—</td></tr><tr><td>Next-year column when a plan has no next-year actions</td><td>Hidden (grid ends at Aug / Q4)</td><td>—</td></tr><tr><td>Import notes after page reload</td><td>Not shown again (notes come from the import response only)</td><td>—</td></tr><tr><td>Mapping keys</td><td>Normalized: trimmed, whitespace collapsed, lower-case</td><td>—</td></tr><tr><td>Test fixture for v2.1</td><td>Copy <code>…FY2026-2027 (1).xlsx</code> to <code>tests/fixtures/axc-fy2026-27-v2.1.xlsx</code></td><td>Build a mutated copy of the v2.0 fixture in the test</td></tr><tr><td>Empty deliverable</td><td>Use the action text as the topic label</td><td>—</td></tr><tr><td>Topic label length in cells</td><td>Full deliverable text, CSS wraps it</td><td>—</td></tr><tr><td>Target id not found on <code>/target/:id</code></td><td>"Target not found" state per <code>ui.md</code></td><td>—</td></tr><tr><td>No plan imported yet</td><td>Empty state per <code>ui.md</code> (<code>404 no_plan</code>)</td><td>—</td></tr><tr><td>Two uploads at once</td><td>Serialize; the second waits and wins</td><td>—</td></tr><tr><td>Error message wording</td><td>Short, sheet + row + what is wrong (see <code>ui.md</code> examples)</td><td>—</td></tr><tr><td>Port / hosting details on the internal server</td><td><code>PORT</code> env var, default 3000; run with <code>npm start</code></td><td>Reverse proxy is the ops team's choice, out of scope</td></tr><tr><td>Where CSS lives</td><td>One <code>src/client/styles.css</code> with <code>:root</code> tokens</td><td>—</td></tr></table>
+<h4>Blast Radius</h4>
+<p>Greenfield — everything is new.</p>
+<ul>
+<li><code>package.json</code>, <code>tsconfig*.json</code>, <code>vite.config.ts</code>, <code>vitest.config.ts</code>, <code>.gitignore</code> (new) — safe/reversible</li>
+<li><code>src/shared/*</code> (model, fiscal, parse-axc, parse-csv, next-actions) (new) — safe/reversible</li>
+<li><code>src/server/*</code> (index, read-grid, plan-store, routes) (new) — safe/reversible</li>
+<li><code>src/client/*</code> (pages, components, styles) (new) — safe/reversible</li>
+<li><code>data/</code> runtime files (created at run time, git-ignored) — safe/reversible (the previous plan is kept)</li>
+<li>*(revision 2)* <code>src/shared/model.ts</code> (Status stays the tone; adds <code>statusWord</code>, <code>next_year</code>, mapping types) — safe/reversible, touches every consumer of <code>Action</code> / <code>Target</code></li>
+<li>*(revision 2)* <code>src/shared/{suggest,parse-axc,parse-csv,fiscal,progress,next-actions}.ts</code> — safe/reversible</li>
+<li>*(revision 2)* <code>src/server/{read-grid,mapping-store,app}.ts</code>, <code>data/mappings.json</code> (new runtime file) — safe/reversible; a wrong mapping is fixed by editing the JSON and re-importing</li>
+<li>*(revision 2)* <code>src/client/{api.ts,pages/timeline-page.tsx,components/*}</code> and all UI tests — safe/reversible</li>
+<li>*(revision 2)* <code>tests/fixtures/axc-fy2026-27-v2.1.xlsx</code> (new) — safe/reversible</li>
+<li><code>tests/fixtures/axc-fy2026-27.xlsx</code> (new, internal plan data) — safe/reversible</li>
+</ul>
+<p>No database. No destructive operations. No auth by design (internal network) — accepted by the user.</p></section><section id="backend"><h2>Backend</h2><h3>Data model</h3><pre>type Status = &#x27;not_started&#x27; | &#x27;on_track&#x27; | &#x27;at_risk&#x27; | &#x27;behind&#x27; | &#x27;done&#x27;;
+type Quarter = &#x27;Q1&#x27; | &#x27;Q2&#x27; | &#x27;Q3&#x27; | &#x27;Q4&#x27;;
+type Due =
+  | { kind: &#x27;month&#x27;; year: number; month: number }          // &quot;Nov 2026&quot; → {2026, 11}
+  | { kind: &#x27;recurring&#x27;; every: &#x27;monthly&#x27; | &#x27;quarterly&#x27; };
+interface Action {
+  targetId: string; section: string; no: number;
+  quarter: Quarter | &#x27;ongoing&#x27;;
+  action: string; deliverable: string; measure: string | null;
+  owner: string; due: Due; status: Status;
+}
+interface Target {
+  id: string; name: string; weight: number;                 // 0..1
+  owner: string; status: Status; objective: string;
+  mustAchieve: string[]; how: string[]; dependsOn: string[];
+  risks: { risk: string; mitigation: string }[];
+  changes: { date: string; what: string; reason: string; by: string }[];
+  actions: Action[];
+}
+interface Plan {
+  title: string;
+  fiscal: { startYear: number; startMonth: number };        // FY26-27 → {2026, 9}
+  templateVersion: string | null;
+  source: { fileName: string; importedAt: string };         // ISO timestamp
+  targets: Target[];
+}
+interface Problem { sheet?: string; row?: number; message: string }
+type ParseResult = { ok: true; plan: Plan; warnings: Problem[] } | { ok: false; problems: Problem[] };</pre><h3>Parsing</h3><ul>
+<li><b>Grid first.</b> <code>readGrid(buffer, fileName)</code> (<code>src/server/read-grid.ts</code>) uses SheetJS <code>read</code> + <code>sheet_to_json(ws, { header: 1, raw: true, defval: null })</code> per sheet → <code>Record&lt;string, Cell[][]&gt;</code>. Formulas are read as cached values. CSV goes through the same call (one sheet).</li>
+<li><b>AXC template</b> (<code>src/shared/parse-axc.ts</code>), located by label, never by row number:</li>
+<li>Target sheets: A1 matches <code>^(T\d+)\s*-\s*(.+)$</code>. Sheet order = target order.</li>
+<li>Header row 2: <code>Weight</code> → B, <code>Owner</code> → D, <code>Status</code> → G (blank = <code>not_started</code>).</li>
+<li>Blocks start at a row whose A cell matches <code>^\d+\s+&lt;LABEL&gt;</code> with LABEL in <code>OBJECTIVE</code>, <code>WHAT THIS MUST ACHIEVE</code>, <code>ACTION PLAN</code>, <code>HOW WE WILL DO IT</code>, <code>WHAT THIS DEPENDS ON</code>, <code>RISK &amp; MITIGATION</code>, <code>CHANGE HISTORY</code>. A block runs until the next block heading. Unknown headings (e.g. <code>LINK TO THE MATURITY SCORE</code>) are skipped.</li>
+<li>Action table: the header row is found by column names through an alias map (<code>#</code>, <code>Quarter</code>, <code>Action</code>, <code>Deliverable</code>, <code>Success measure</code>, <code>Owner</code>, <code>Due</code>, <code>Status</code>), so column order may change. Rows where A matches <code>^[A-Z]\.\s+</code> are section headers. Rows where A is a number are actions. The table ends at <code>ACTIONS DONE</code> or the next block. A target with no section rows gets section <code>Actions</code>.</li>
+<li>List blocks read column B. Risks: B = risk, E = mitigation. Change history: B date, C what, E reason, G by; rows with only a number are skipped.</li>
+<li><code>Executive Summary</code>: A2 gives the fiscal period (<code>September 2026 - August 2027</code> → start {2026, 9}); the <code>Version</code> row gives <code>templateVersion</code>; the plan title comes from C5 (team) plus the period.</li>
+<li>Value parsing: Quarter <code>Q1..Q4</code> or <code>ongoing</code> (case-insensitive, spaces trimmed). Due <code>Mon YYYY</code> → month; <code>monthly</code> / <code>quarterly</code> → recurring. Status labels map case-insensitively; blank → <code>not_started</code>. All text cells are trimmed and runs of whitespace collapsed (<code>A.  Automation workflows</code> → <code>A. Automation workflows</code>).</li>
+<li><b>Flat CSV</b> (<code>src/shared/parse-csv.ts</code>): header row with columns <code>target_id, target_name, target_weight, target_owner, target_status, section, no, quarter, action, deliverable, success_measure, owner, due, status</code>. Target fields are taken from the first row of each target. Fiscal start = September of the fiscal year containing the earliest month due. Detail blocks (objective, risks…) are empty for CSV.</li>
+<li><b>Fail loud.</b> Any problem → <code>{ ok: false, problems }</code>; never a partial plan. A template version newer than <code>2.0</code> is a warning, not a problem.</li>
+</ul><h3>Fiscal calendar</h3><ul>
+<li>Q1 = start month + 0..2, Q2 = +3..5, Q3 = +6..8, Q4 = +9..11 (FY26-27: Q1 Sep–Nov 2026).</li>
+<li><code>monthColumns(plan)</code> → 12 <code>{ year, month, quarter }</code>; <code>quarterColumns(plan)</code> → 4 with date-range labels.</li>
+<li>Placement: month view puts an action in its due-month column; quarter view in its quarter. Recurring (<code>ongoing</code>) actions are not placed in cells.</li>
+<li><code>currentPeriod(plan, today)</code> → current month index and quarter, or <code>null</code> when today is outside the fiscal year.</li>
+</ul><h3>Next actions</h3><p><code>nextActions(plan, today, { limit, targetId? })</code>:</p>
+<ol>
+<li>Candidates = actions with status ≠ <code>done</code>.</li>
+<li><code>nextDate</code>: month due → last day of that month; <code>monthly</code> → last day of today's month; <code>quarterly</code> → last day of today's fiscal quarter.</li>
+<li>Sort by: overdue first (<code>nextDate &lt; today</code>), then <code>nextDate</code> ascending, then target weight descending, then target order, then action <code>no</code>.</li>
+<li>Return the first <code>limit</code> (5 on the timeline, 3 on a target page).</li>
+</ol>
+<p>On 28 Sep 2026 with the AXC workbook: T3 #9 (monthly, 30 Sep) first, then the Nov-2026 actions of T1 (weight 34%).</p><h3>API</h3><table><tr><th>Method</th><th>Path</th><th>Request</th><th>Response</th></tr><tr><td>GET</td><td><code>/api/plan</code></td><td>—</td><td><code>200 Plan</code> · <code>404 { error: 'no_plan' }</code></td></tr><tr><td>POST</td><td><code>/api/plan</code></td><td><code>multipart/form-data</code>, field <code>file</code></td><td><code>200 { plan, warnings }</code> · <code>400 { error: 'invalid_plan', problems }</code> · <code>413 { error: 'file_too_large' }</code> · <code>415 { error: 'unsupported_type' }</code></td></tr><tr><td>GET</td><td><code>/*</code></td><td>—</td><td>built SPA (<code>index.html</code> fallback)</td></tr></table>
+<ul>
+<li>Upload via <code>multer</code> memory storage, limit 5 MB, extension <code>.xlsx</code> or <code>.csv</code>.</li>
+<li><code>PlanStore</code> (<code>src/server/plan-store.ts</code>): <code>load()</code> / <code>save(plan, originalBuffer, fileName)</code>. Writes <code>data/plan.tmp.json</code> then renames over <code>data/plan.json</code>; the old file is copied to <code>data/plan.prev.json</code> first; the upload is kept as <code>data/uploads/&lt;ISO-timestamp&gt;-&lt;name&gt;</code>. Imports are serialized (one at a time).</li>
+<li>Config: <code>PORT</code> (default 3000), <code>DATA_DIR</code> (default <code>./data</code>).</li>
+</ul><h3>Revision 2 — adaptive import</h3><p>Agreed 2026-09-29. A file whose <b>layout</b> can't be read is still rejected with problems. A readable file with <b>unknown words</b> in the Status, Quarter or Due columns is not rejected: the server answers <code>needs_mapping</code>, the page asks the user what each word means, and the answer is saved and applied to every later import.</p>
+<h5>Architecture (revision 2)</h5>
+<pre>ImportButton ─▶ uploadPlan(file, mapping?) ─▶ POST /api/plan  (multipart: file, mapping?)
+                                                  │
+                        readGrid → { grid, dropdowns }      (dropdowns: data-validation lists)
+                                                  │
+                  MappingStore.load()  ∪  submitted mapping   (data/mappings.json)
+                                                  │
+                     parseAxcWorkbook / parseFlatCsv(grid, { mappings, dropdowns })
+                   ├─ problems (layout / non-mappable)  → 400 invalid_plan
+                   ├─ needsMapping (unknown words)      → 422 needs_mapping  → ImportMappingDialog
+                   │                                                  └─ re-POST same file + mapping
+                   └─ ok → PlanStore.save + MappingStore.merge(submitted, version seen)
+                         → 200 { plan, warnings, applied }  → ImportNotes</pre>
+<h5>Model changes (<code>src/shared/model.ts</code>)</h5>
+<p>The existing <code>Status</code> type stays the <b>tone</b> (5 values), so ranking, progress and colors keep working on tones. Each status also keeps the <b>file's word</b>:</p>
+<pre>interface Action { …; status: Status; statusWord: string; quarter: Quarter | &#x27;ongoing&#x27; | &#x27;next_year&#x27;; due: Due }
+interface Target { …; status: Status; statusWord: string }
+type Due = … | { kind: &#x27;next_year&#x27; };
+type MappingField = &#x27;status&#x27; | &#x27;quarter&#x27; | &#x27;due&#x27;;
+type QuarterMeaning = Quarter | &#x27;ongoing&#x27; | &#x27;next_year&#x27;;
+type DueMeaning = &#x27;next_year&#x27; | &#x27;quarter_end&#x27;;
+interface Mappings {                         // data/mappings.json and the submitted `mapping` field
+  status: Record&lt;string, Status&gt;;            // key = normalized word (&quot;in progress&quot;)
+  quarter: Record&lt;string, QuarterMeaning&gt;;   // &quot;fy27-28&quot; → &quot;next_year&quot;
+  due: Record&lt;string, DueMeaning&gt;;           // &quot;tbd&quot; → &quot;quarter_end&quot;
+  seenVersions?: string[];                   // server-only: template versions already warned about
+}
+interface UnknownValue {
+  field: MappingField; word: string; count: number;
+  where: { sheet?: string; row: number }[];  // first 10 locations
+  fromDropdown: boolean;                     // word seen only in the file&#x27;s dropdown list
+  suggestion: Status | QuarterMeaning | DueMeaning;
+}
+interface AppliedMapping { field: MappingField; word: string; meaning: string }
+type ParseResult =
+  | { ok: true; plan: Plan; warnings: Problem[]; applied: AppliedMapping[] }
+  | { ok: false; problems: Problem[] }
+  | { ok: false; needsMapping: UnknownValue[] };</pre>
+<ul>
+<li>Empty status cell → word <code>""</code>, shown as "Not started".</li>
+<li>A word is <b>known</b> when it is built in (the 5 status labels, <code>Q1</code>–<code>Q4</code>, <code>ongoing</code>, a month due, <code>monthly</code>, <code>quarterly</code>) or present in the mappings. Words are compared normalized: trimmed, whitespace collapsed, lower-case.</li>
+</ul>
+<h5>Parsing changes</h5>
+<ul>
+<li><code>parseAxcWorkbook(grid, fileName, importedAt, { mappings, dropdowns })</code> and <code>parseFlatCsv(…, { mappings })</code>.</li>
+<li>Order of checks: (1) layout problems → <code>{ problems }</code>. (2) Unknown words, collected over <b>all</b> rows plus the file's dropdown lists → <code>{ needsMapping }</code>. (3) Non-mappable value problems (action # not a number, month due outside the fiscal year) → <code>{ problems }</code>. (4) Otherwise <code>ok</code>.</li>
+<li>Quarter meaning <code>next_year</code> → the action's <code>quarter = 'next_year'</code> and <code>due = { kind: 'next_year' }</code>, whatever its due cell says. Due words on such rows are never asked.</li>
+<li>Due meaning <code>quarter_end</code> → month due = last month of the action's quarter (e.g. Q3 → May). Due meaning <code>next_year</code> → the action becomes next-year.</li>
+<li><code>applied</code> lists every saved or submitted mapping actually used by this file.</li>
+<li><b>Suggestions</b> (<code>src/shared/suggest.ts</code>): status — <code>done|complete|completed|finished</code> → done; <code>in progress|on track|started|wip|ongoing</code> → on_track; <code>at risk|risk|delayed|slipping</code> → at_risk; <code>behind|blocked|overdue|late|stuck|on hold</code> → behind; anything else → not_started. Quarter — <code>FYyy-yy</code>, <code>next year</code>, <code>later</code>, <code>deferred</code> → next_year; <code>Q 1</code>-style → that quarter; else next_year. Due — <code>next year|later</code> → next_year; else quarter_end.</li>
+</ul>
+<h5>Dropdown lists (<code>src/server/read-grid.ts</code>)</h5>
+<ul>
+<li><code>readGrid</code> returns <code>{ grid, dropdowns }</code> where <code>dropdowns[sheet] = { ref: string; values: string[] }[]</code>.</li>
+<li>Read with SheetJS <code>bookFiles: true</code>. Map each sheet name to its XML path through <code>xl/workbook.xml</code> (sheet <code>r:id</code>) and <code>xl/_rels/workbook.xml.rels</code> (target). <b><code>wb.Directory.sheets</code> is not in sheet order</b> — checked on the v2.1 file, where its second entry holds T3's lists.</li>
+<li>From the sheet XML take <code>&lt;dataValidation type="list" sqref="…"&gt;</code> with an inline <code>&lt;formula1&gt;"a,b,c"&lt;/formula1&gt;</code> (XML entities decoded). A range-reference formula (e.g. <code>=Lists!A1:A5</code>) is skipped.</li>
+<li>A list is a status list when its <code>sqref</code> covers the target status cell (row 2) or the action table's Status column. Its values that are not known become unknown <code>status</code> words with <code>count: 0</code>, <code>fromDropdown: true</code>.</li>
+</ul>
+<h5>Mapping store (<code>src/server/mapping-store.ts</code>)</h5>
+<ul>
+<li><code>MappingStore(dataDir)</code>: <code>load(): Mappings</code> (missing file → empty), <code>merge(partial, version?)</code> writes <code>data/mappings.json</code> atomically (temp + rename, like <code>PlanStore</code>) and adds <code>version</code> to <code>seenVersions</code>. Writes are serialized.</li>
+</ul>
+<h5>API changes</h5>
+<table><tr><th>Method</th><th>Path</th><th>Request</th><th>Response</th></tr><tr><td>POST</td><td><code>/api/plan</code></td><td>multipart <code>file</code> + optional <code>mapping</code> (JSON string, <code>Mappings</code> without <code>seenVersions</code>)</td><td><code>200 { plan, warnings, applied }</code> · <code>400 { error: 'invalid_plan', problems }</code> · <code>400 { error: 'invalid_mapping' }</code> (unparseable or unknown meaning) · <code>422 { error: 'needs_mapping', unknown: UnknownValue[] }</code> · <code>413</code> · <code>415</code></td></tr></table>
+<ul>
+<li>The mapping is saved <b>only</b> when the import succeeds. A 422 saves nothing.</li>
+<li>The version warning is added only when the version is newer than tested <b>and</b> not in <code>seenVersions</code>; a successful import then records the version.</li>
+</ul>
+<h5>Derived data changes</h5>
+<ul>
+<li><code>fiscal.ts</code>: <code>hasNextYear(plan)</code>, <code>nextFiscalLabel(plan)</code> → <code>FY27-28</code>; <code>placeMonth</code> returns 12 and <code>placeQuarter</code> returns 4 for next-year actions; <code>monthColumns</code> / <code>quarterColumns</code> take <code>{ nextYear: boolean }</code> and append a <code>Next year</code> column.</li>
+<li><code>progress.ts</code>: <code>{ done, total, nextYear }</code> counts <b>this year only</b>; next-year actions are counted in <code>nextYear</code>.</li>
+<li><code>next-actions.ts</code>: next-year actions are never candidates. Sort key: (overdue <b>or</b> tone <code>behind</code>) first, then next date, weight, target order, action no.</li>
+</ul>
+<h5>Client changes</h5>
+<ul>
+<li><code>api.ts</code> <code>uploadPlan(file, mapping?)</code> → <code>{ ok: true, plan, warnings, applied } | { ok: false, problems } | { ok: false, needsMapping }</code>.</li>
+<li><code>ImportMappingDialog</code> (new), <code>ImportNotes</code> (new), grouped <code>StatusLegend</code>, <code>StatusDot</code> / <code>StatusLabel</code> / <code>StatusBadge</code> show the word, Next-year column in <code>TimelineGrid</code>, Next-year block in <code>ActionPlan</code>, progress line in <code>TargetHeader</code>. Token <code>--next: #f3f4f8</code> added to <code>styles.css</code>.</li>
+</ul>
+<h5>Rejected (revision 2)</h5>
+<ul>
+<li><b>Hardcoding the v2.1 words</b>: breaks again on the next template change.</li>
+<li><b>Silent auto-mapping without asking</b>: a wrong guess would go unnoticed; the user chose to confirm once.</li>
+<li><b>AI/LLM mapping</b>: not testable deterministically and sends plan data outside the company.</li>
+<li><b>Keeping the upload on the server between the 422 and the retry</b>: the browser still has the file; re-sending it avoids pending-upload storage and cleanup.</li>
+<li><b>A screen to edit saved mappings</b>: out of scope; edit <code>data/mappings.json</code>.</li>
+</ul><h3>Rejected approaches</h3><ul>
+<li><b>Browser-only SPA with IndexedDB</b>: every viewer would have to import the file themselves; the user wants one shared plan.</li>
+<li><b>Google Sheet URL (OAuth / service account / daily sync)</b>: dropped from v1 by the user; the grid → adapter split leaves room to add it later without touching the parser.</li>
+<li><b>Fixed-row parsing</b>: T4's table starts two rows earlier than the others; the template is a draft and will change.</li>
+</ul></section><section id="spec"><h2>Requirements (spec.md)</h2><h3>Requirement: parse AXC workbook <span class="req">req-1</span></h3>
+<p>The system SHALL turn an AXC-template <code>.xlsx</code> into a Plan with its targets, sections, actions and target details, locating each block by its label rather than its row number.</p>
+<h4>Scenario: real FY2026-27 workbook</h4>
+<ul>
+<li><b>WHEN</b> <code>tests/fixtures/axc-fy2026-27.xlsx</code> is parsed</li>
+<li><b>THEN</b> the plan has 4 targets (T1–T4) with 26, 21, 18 and 10 actions, fiscal start September 2026 and template version "2.0"</li>
+</ul>
+<h4>Scenario: fields of one action</h4>
+<ul>
+<li><b>WHEN</b> the same workbook is parsed</li>
+<li><b>THEN</b> T1 action #1 has quarter Q1, due Nov 2026, owner "Developer", deliverable "Process inventory + needs survey", section "A. Automation workflows" and status not_started</li>
+</ul>
+<h4>Scenario: shifted table and recurring actions</h4>
+<ul>
+<li><b>WHEN</b> the same workbook is parsed</li>
+<li><b>THEN</b> T4's actions are read even though its table starts at a different row, T4 has section "Actions", and T3 #9 has quarter "ongoing" with a monthly recurring due</li>
+</ul>
+<h4>Scenario: target details</h4>
+<ul>
+<li><b>WHEN</b> the same workbook is parsed</li>
+<li><b>THEN</b> T2 has 7 "must achieve" items, 3 "depends on" items, and T4 has 2 risks with mitigations</li>
+</ul>
+<h3>Requirement: reject invalid files <span class="req">req-2</span></h3>
+<p>The system SHALL reject a file whose layout does not match the template, or whose values cannot be mapped (action # not a number, month due outside the fiscal year), with a list of problems naming the sheet, row and issue, and SHALL never return a partial plan. Unknown status, quarter or due words are not problems; they are handled by <span class="req">req-14</span>.</p>
+<h4>Scenario: missing action table</h4>
+<ul>
+<li><b>WHEN</b> a workbook's T2 sheet has no action-table header row</li>
+<li><b>THEN</b> parsing fails with a problem for sheet "T2 Adoption" saying the action table was not found</li>
+</ul>
+<h4>Scenario: due month outside the fiscal year</h4>
+<ul>
+<li><b>WHEN</b> an action's Due cell is "Nov 2028"</li>
+<li><b>THEN</b> parsing fails with a problem naming that sheet and row and saying the due month is outside the fiscal year</li>
+</ul>
+<h4>Scenario: newer template version</h4>
+<ul>
+<li><b>WHEN</b> the workbook's version is "3.0" and otherwise valid</li>
+<li><b>THEN</b> parsing succeeds with a warning that the version is newer than the tested "2.0"</li>
+</ul>
+<h3>Requirement: parse flat CSV <span class="req">req-3</span></h3>
+<p>The system SHALL accept a <code>.csv</code> file with one row per action and the documented columns, producing the same Plan shape.</p>
+<h4>Scenario: valid CSV</h4>
+<ul>
+<li><b>WHEN</b> a CSV with header <code>target_id,target_name,target_weight,target_owner,target_status,section,no,quarter,action,deliverable,success_measure,owner,due,status</code> and 3 rows for T1 is parsed</li>
+<li><b>THEN</b> the plan has one target T1 with 3 actions and fiscal start September of the fiscal year of the earliest due</li>
+</ul>
+<h4>Scenario: missing column</h4>
+<ul>
+<li><b>WHEN</b> the CSV has no <code>due</code> column</li>
+<li><b>THEN</b> parsing fails with a problem naming the missing column</li>
+</ul>
+<h3>Requirement: import and store the plan <span class="req">req-4</span></h3>
+<p>The server SHALL accept an uploaded <code>.xlsx</code> or <code>.csv</code> file, replace the shared current plan only if parsing succeeds, and keep the previous plan and the uploaded file.</p>
+<h4>Scenario: valid upload</h4>
+<ul>
+<li><b>WHEN</b> <code>POST /api/plan</code> receives the fixture workbook</li>
+<li><b>THEN</b> it returns 200 with the plan, <code>data/plan.json</code> holds it, and the earlier plan is in <code>data/plan.prev.json</code></li>
+</ul>
+<h4>Scenario: invalid upload keeps the current plan</h4>
+<ul>
+<li><b>WHEN</b> <code>POST /api/plan</code> receives a file that fails parsing</li>
+<li><b>THEN</b> it returns 400 <code>{ error: "invalid_plan", problems }</code> and <code>GET /api/plan</code> still returns the previous plan</li>
+</ul>
+<h4>Scenario: wrong type or too large</h4>
+<ul>
+<li><b>WHEN</b> the upload is a <code>.pdf</code>, or larger than 5 MB</li>
+<li><b>THEN</b> it returns 415 <code>unsupported_type</code>, or 413 <code>file_too_large</code>, and nothing is stored</li>
+</ul>
+<h3>Requirement: serve the current plan <span class="req">req-5</span></h3>
+<p>The server SHALL return the current shared plan to any caller.</p>
+<h4>Scenario: plan exists</h4>
+<ul>
+<li><b>WHEN</b> a plan was imported and <code>GET /api/plan</code> is called</li>
+<li><b>THEN</b> it returns 200 with that plan</li>
+</ul>
+<h4>Scenario: nothing imported</h4>
+<ul>
+<li><b>WHEN</b> no plan has been imported and <code>GET /api/plan</code> is called</li>
+<li><b>THEN</b> it returns 404 <code>{ error: "no_plan" }</code></li>
+</ul>
+<h3>Requirement: fiscal calendar and placement <span class="req">req-6</span></h3>
+<p>The system SHALL lay out the plan on the fiscal year from its start month, placing each action by due month (month view) or quarter (quarter view), and identify the current period.</p>
+<h4>Scenario: month columns</h4>
+<ul>
+<li><b>WHEN</b> month columns are built for a plan starting September 2026</li>
+<li><b>THEN</b> there are 12 columns Sep 2026 … Aug 2027, labelled Q1 for Sep–Nov and Q4 for Jun–Aug</li>
+</ul>
+<h4>Scenario: placement</h4>
+<ul>
+<li><b>WHEN</b> an action is due Feb 2027 in quarter Q2</li>
+<li><b>THEN</b> it is placed in the Feb 2027 column in month view and the Q2 column in quarter view; an ongoing action is placed in no column</li>
+</ul>
+<h4>Scenario: current period</h4>
+<ul>
+<li><b>WHEN</b> today is 28 Sep 2026</li>
+<li><b>THEN</b> the current month is Sep 2026 and the current quarter Q1; when today is 1 Oct 2027 there is no current period</li>
+</ul>
+<h3>Requirement: rank next actions <span class="req">req-7</span></h3>
+<p>The system SHALL list open actions of this fiscal year ordered by overdue or Behind-tone first, then next due date, then target weight, then target order, then action number.</p>
+<h4>Scenario: plan-wide on 28 Sep 2026</h4>
+<ul>
+<li><b>WHEN</b> next actions are computed for the fixture plan with today 28 Sep 2026 and limit 5</li>
+<li><b>THEN</b> the first is T3 #9 (monthly, next 30 Sep 2026) followed by T1 #1, #2, #3, #4</li>
+</ul>
+<h4>Scenario: overdue and done</h4>
+<ul>
+<li><b>WHEN</b> an action due Aug 2026 is not done and another action is done</li>
+<li><b>THEN</b> the overdue action is listed first and the done action is not listed</li>
+</ul>
+<h4>Scenario: per target</h4>
+<ul>
+<li><b>WHEN</b> next actions are computed for target T2 with limit 3</li>
+<li><b>THEN</b> only T2 actions are returned, 3 at most</li>
+</ul>
+<h4>Scenario: Behind and next-year actions</h4>
+<ul>
+<li><b>WHEN</b> an action due Aug 2027 has a status word mapped to Behind (e.g. "Blocked") and another action is next-year</li>
+<li><b>THEN</b> the Behind action is listed before actions due earlier that are not Behind, and the next-year action is never listed</li>
+</ul>
+<h3>Requirement: status colors <span class="req">req-8</span></h3>
+<p>The UI SHALL show status only through the five status colors (Not started grey, On track green, At risk amber, Behind red, Done blue), always with a visible legend.</p>
+<h4>Scenario: legend and dots</h4>
+<ul>
+<li><b>WHEN</b> the timeline page renders a plan</li>
+<li><b>THEN</b> a legend with the five statuses is shown above the grid and each topic and target shows a dot in its status color</li>
+</ul>
+<h3>Requirement: timeline page <span class="req">req-9</span></h3>
+<p>The timeline page SHALL show one row per target and one column per month (default) or quarter, each cell listing the topics placed there, with the current period highlighted.</p>
+<h4>Scenario: default month view</h4>
+<ul>
+<li><b>WHEN</b> the page loads with the fixture plan and <code>?today=2026-09-28</code></li>
+<li><b>THEN</b> Month is the active view, 12 month columns are shown with Sep highlighted as now, and the T1 / Nov 2026 cell lists 7 topics</li>
+</ul>
+<h4>Scenario: quarter toggle</h4>
+<ul>
+<li><b>WHEN</b> the user clicks Quarter</li>
+<li><b>THEN</b> 4 quarter columns with date ranges are shown and the T1 / Q1 cell lists 7 topics</li>
+</ul>
+<h4>Scenario: flagged cell</h4>
+<ul>
+<li><b>WHEN</b> a cell contains a topic with status Behind (or At risk and no Behind)</li>
+<li><b>THEN</b> the cell shows a red (or amber) left edge</li>
+</ul>
+<h4>Scenario: navigate to detail</h4>
+<ul>
+<li><b>WHEN</b> the user clicks a target cell or any period cell of T2</li>
+<li><b>THEN</b> the browser goes to <code>/target/T2</code></li>
+</ul>
+<h3>Requirement: next actions panel <span class="req">req-10</span></h3>
+<p>The timeline page SHALL show the top 5 next actions with status, target, action text and due text, each linking to its target page.</p>
+<h4>Scenario: panel content</h4>
+<ul>
+<li><b>WHEN</b> the page loads with the fixture plan and <code>?today=2026-09-28</code></li>
+<li><b>THEN</b> the panel shows 5 rows, the first "T3 · Publish the monthly usage and cost report" (the action text) with due text "↻ due 30 Sep"</li>
+</ul>
+<h3>Requirement: import from the page <span class="req">req-11</span></h3>
+<p>The page SHALL let the user import a file and show empty, loading and error states without losing the current plan on failure.</p>
+<h4>Scenario: empty state</h4>
+<ul>
+<li><b>WHEN</b> no plan exists</li>
+<li><b>THEN</b> the page shows "No plan loaded" with a file drop zone and a Choose file button</li>
+</ul>
+<h4>Scenario: successful import</h4>
+<ul>
+<li><b>WHEN</b> the user imports the fixture workbook</li>
+<li><b>THEN</b> a loading state shows during upload and the timeline then renders the new plan and its file name and import time in the header</li>
+</ul>
+<h4>Scenario: failed import</h4>
+<ul>
+<li><b>WHEN</b> the user imports an invalid file</li>
+<li><b>THEN</b> an error panel lists the problems, says nothing was replaced, and the previous plan stays on screen</li>
+</ul>
+<h3>Requirement: target detail page <span class="req">req-12</span></h3>
+<p>The target page SHALL show the target's header facts, its next 3 actions, its action plan grouped by quarter with status badges, and collapsible detail sections.</p>
+<h4>Scenario: T1 page</h4>
+<ul>
+<li><b>WHEN</b> the user opens <code>/target/T1</code> with the fixture plan and <code>?today=2026-09-28</code></li>
+<li><b>THEN</b> the page shows "T1 · Build AI Tools &amp; Automation", weight 34%, owner Developer, progress 0 / 26, 3 next actions, quarter blocks Q1–Q4 with Q1 tagged now, and sections What this must achieve (open), How we will do it, Depends on, Risks, Change history</li>
+</ul>
+<h4>Scenario: unknown target</h4>
+<ul>
+<li><b>WHEN</b> the user opens <code>/target/T9</code></li>
+<li><b>THEN</b> the page shows "Target not found" with a link back to the timeline</li>
+</ul>
+<h3>Requirement: single-service hosting <span class="req">req-13</span></h3>
+<p>The system SHALL run as one Node process that serves the API and the built web page, including direct links to target pages.</p>
+<h4>Scenario: deep link</h4>
+<ul>
+<li><b>WHEN</b> the built app runs with <code>npm start</code> and a browser requests <code>/target/T1</code> directly</li>
+<li><b>THEN</b> the server returns the web page, which renders the T1 detail</li>
+</ul>
+<h3>Requirement: detect unknown words and suggest meanings <span class="req">req-14</span></h3>
+<p>The system SHALL collect every status, quarter and due word that is neither built in nor saved in the mappings from the file's rows, and return them with counts, locations and a suggested meaning instead of a plan. Unmapped words from the file's status dropdown lists SHALL be added to that list, but SHALL NOT on their own stop an import (decided 2026-09-29: the v2.0 file already lists "In progress" and "Blocked" in its dropdown).</p>
+<h4>Scenario: v2.1 workbook without mappings</h4>
+<ul>
+<li><b>WHEN</b> <code>tests/fixtures/axc-fy2026-27-v2.1.xlsx</code> is parsed with empty mappings</li>
+<li><b>THEN</b> the result is <code>needsMapping</code> with status "In progress" (7 actions, suggestion On track), status "Blocked" (0 actions, from the dropdown list, suggestion Behind) and quarter "FY27-28" (14 actions, suggestion Next year), and no due word is asked</li>
+</ul>
+<h4>Scenario: v2.1 workbook with mappings</h4>
+<ul>
+<li><b>WHEN</b> the same workbook is parsed with mappings <code>in progress → on_track</code>, <code>blocked → behind</code>, <code>fy27-28 → next_year</code></li>
+<li><b>THEN</b> parsing succeeds, T1 has 12 this-year and 7 next-year actions, T1 #4 has status on_track with word "In progress", and <code>applied</code> lists the three mappings used by the file</li>
+</ul>
+<h4>Scenario: dropdown-only words</h4>
+<ul>
+<li><b>WHEN</b> the v2.0 fixture is parsed with empty mappings (its Status dropdown lists "In progress" and "Blocked", no row uses them)</li>
+<li><b>THEN</b> parsing succeeds without asking for a mapping</li>
+</ul>
+<h4>Scenario: due word on a normal quarter</h4>
+<ul>
+<li><b>WHEN</b> a Q3 action's Due cell is "TBD" and the mappings say <code>tbd → quarter_end</code></li>
+<li><b>THEN</b> the action is due May of that fiscal year</li>
+</ul>
+<h4>Scenario: layout still wins</h4>
+<ul>
+<li><b>WHEN</b> a v2.1 workbook also has a sheet without an action-table header</li>
+<li><b>THEN</b> parsing fails with problems and no mapping is asked</li>
+</ul>
+<h3>Requirement: mapping round trip through the API <span class="req">req-15</span></h3>
+<p>The server SHALL answer an upload with unknown words by 422 <code>needs_mapping</code> without saving anything, accept the same file again with a <code>mapping</code> field, and on success save both the plan and the merged mappings so later imports need no dialog.</p>
+<h4>Scenario: first upload of v2.1</h4>
+<ul>
+<li><b>WHEN</b> <code>POST /api/plan</code> receives the v2.1 fixture and no mappings are saved</li>
+<li><b>THEN</b> it returns 422 <code>{ error: "needs_mapping", unknown }</code>, <code>data/plan.json</code> is unchanged and <code>data/mappings.json</code> is not written</li>
+</ul>
+<h4>Scenario: retry with mapping</h4>
+<ul>
+<li><b>WHEN</b> the same file is posted with <code>mapping</code> = the three suggested meanings</li>
+<li><b>THEN</b> it returns 200 with the plan and <code>applied</code>, and <code>data/mappings.json</code> contains the three mappings</li>
+</ul>
+<h4>Scenario: second import</h4>
+<ul>
+<li><b>WHEN</b> the v2.1 fixture is posted again without a mapping</li>
+<li><b>THEN</b> it returns 200 directly with <code>applied</code> listing the saved mappings</li>
+</ul>
+<h4>Scenario: bad mapping field</h4>
+<ul>
+<li><b>WHEN</b> the <code>mapping</code> field is not valid JSON or maps a word to an unknown meaning</li>
+<li><b>THEN</b> it returns 400 <code>{ error: "invalid_mapping" }</code> and nothing is saved</li>
+</ul>
+<h3>Requirement: next-year actions <span class="req">req-16</span></h3>
+<p>The system SHALL treat actions mapped to Next year as outside this fiscal year: placed in a Next-year column, excluded from this year's progress and from next actions.</p>
+<h4>Scenario: placement and label</h4>
+<ul>
+<li><b>WHEN</b> a plan starting Sep 2026 has next-year actions</li>
+<li><b>THEN</b> month and quarter columns end with a "Next year" column labelled "FY27-28", and next-year actions are placed only there</li>
+</ul>
+<h4>Scenario: progress</h4>
+<ul>
+<li><b>WHEN</b> progress is computed for T1 of the mapped v2.1 plan</li>
+<li><b>THEN</b> it is 2 done of 12 with 7 next year, and the four targets total 52 this-year actions</li>
+</ul>
+<h3>Requirement: status words and tones <span class="req">req-17</span></h3>
+<p>The UI SHALL show each status as the file's own word in the color of its tone, and the legend SHALL group the file's words under each tone.</p>
+<h4>Scenario: word and color</h4>
+<ul>
+<li><b>WHEN</b> an action's word is "In progress" mapped to On track</li>
+<li><b>THEN</b> its dot and badge use the On track color and the text reads "In progress"</li>
+</ul>
+<h4>Scenario: grouped legend</h4>
+<ul>
+<li><b>WHEN</b> the timeline renders the mapped v2.1 plan</li>
+<li><b>THEN</b> the legend shows "On track (In progress)" and the other four tones without extra words</li>
+</ul>
+<h3>Requirement: mapping dialog <span class="req">req-18</span></h3>
+<p>The page SHALL show a mapping dialog when an import returns <code>needs_mapping</code>, pre-filled with the suggestions, and SHALL re-send the same file with the chosen mapping on "Apply &amp; import".</p>
+<h4>Scenario: dialog content</h4>
+<ul>
+<li><b>WHEN</b> the user imports the v2.1 fixture with no saved mappings</li>
+<li><b>THEN</b> a dialog lists Status "In progress" (7 actions) and "Blocked" (listed in the file's dropdown) and Quarter "FY27-28" (14 actions), each with its suggestion selected</li>
+</ul>
+<h4>Scenario: apply</h4>
+<ul>
+<li><b>WHEN</b> the user clicks "Apply &amp; import"</li>
+<li><b>THEN</b> both buttons are disabled while the file is re-sent with the mapping, and the timeline then shows the new plan</li>
+</ul>
+<h4>Scenario: cancel</h4>
+<ul>
+<li><b>WHEN</b> the user clicks "Cancel"</li>
+<li><b>THEN</b> the dialog closes, nothing is imported, and a note says the file was not imported</li>
+</ul>
+<h3>Requirement: import notes <span class="req">req-19</span></h3>
+<p>The page SHALL show, after an import, a dismissable note listing the mappings applied, and a dismissable warning when the template version is newer than tested, only on the first import of that version.</p>
+<h4>Scenario: first and second import of v2.1</h4>
+<ul>
+<li><b>WHEN</b> the v2.1 fixture is imported for the first time with a mapping, then imported again</li>
+<li><b>THEN</b> the first import shows the applied-mappings note and the version warning; the second shows only the applied-mappings note</li>
+</ul>
+<h4>Scenario: built-in words only</h4>
+<ul>
+<li><b>WHEN</b> the v2.0 fixture is imported after the v2.0 version was already seen</li>
+<li><b>THEN</b> no import note is shown</li>
+</ul>
+<h3>Requirement: next-year UI <span class="req">req-20</span></h3>
+<p>The timeline and target page SHALL show next-year actions in their own column and block, and show this-year progress with the next-year count.</p>
+<h4>Scenario: timeline</h4>
+<ul>
+<li><b>WHEN</b> the timeline renders the mapped v2.1 plan with <code>?today=2026-09-29</code></li>
+<li><b>THEN</b> there are 13 columns ending with "Next year / FY27-28", that column lists 7, 5, 2 and 0 topics for T1–T4, and the T1 cell reads "2 / 12 done · 7 next year"</li>
+</ul>
+<h4>Scenario: target page</h4>
+<ul>
+<li><b>WHEN</b> <code>/target/T1</code> renders the mapped v2.1 plan</li>
+<li><b>THEN</b> progress reads "2 / 12 done" with "this year · 7 more next year", and after Q4 a "Next year · FY27-28 · 7 actions" block lists 7 rows</li>
+</ul>
+<h4>Scenario: no next-year actions</h4>
+<ul>
+<li><b>WHEN</b> the v2.0 plan is shown</li>
+<li><b>THEN</b> there is no Next-year column or block</li>
+</ul></section><section id="frontend"><h2>Frontend</h2><h2>UI: roadline-v1</h2>
+<p><b>Mockups</b>: <code>mockups/timeline.html</code>, <code>mockups/target.html</code> (approved 2026-09-28, revised for template v2.1 and approved 2026-09-29), <code>mockups/import-mapping.html</code> (approved 2026-09-29) <b>References</b>: the running app (<code>src/client/</code>) and the import-error screenshot the user shared on 2026-09-29. Data from <code>[AXC] AXC_Team_Objectives_ActionPlan_FY2026-2027.xlsx</code> (template v2.0) and <code>… (1).xlsx</code> (template v2.1). <b>Style source</b>: <code>src/client/styles.css</code> — tokens on <code>:root</code> (<code>--bg</code>, <code>--surface</code>, <code>--line</code>, <code>--text</code>, <code>--muted</code>, <code>--accent</code>, <code>--now</code>, <code>--now-line</code>, <code>--s-not_started|on_track|at_risk|behind|done</code>, <code>--r</code>) and component classes (<code>.card</code>, <code>.btn</code>, <code>.btn.primary</code>, <code>.seg</code>, <code>.dot</code> + <code>.bg-&lt;tone&gt;</code>, <code>.fg-&lt;tone&gt;</code>, <code>.badge</code>, <code>.legend</code>, <code>.grid</code>, <code>.hd</code>, <code>.cell</code>, <code>.topic</code>, <code>.state.err</code>). Revision 2 adds one token, <code>--next: #f3f4f8</code> (Next-year background). <b>Components</b>: existing components in <code>src/client/components/</code> are reused and extended (named per section below). No external component library.</p>
+<p>Principles agreed: keep it simple — no drawer, no filters, no per-action bars. Click a target → separate detail page. Color = status only, always with a visible legend. Read-only view; anyone with the link sees the same data.</p>
+<p>---</p>
+<h3>timeline (home, route <code>/</code>)</h3>
+<p>Layout:</p>
+<pre>┌ Header ─────────────────────────────────────────────────────────────┐
+│ AXC Action Plan · FY2026-27                     [Month|Quarter] [Import…]
+│ Sep 2026 – Aug 2027 · data from &lt;file&gt; · updated &lt;date time&gt;        │
+├ Next actions ───────────────────────────────────────────────────────┤
+│ ● T3  Monthly usage &amp; cost report      On track     ↻ due 30 Sep    │  top 5
+│ ● T1  Process inventory + needs survey On track       due Nov       │
+├ Legend: Status ● Not started ● On track ● At risk ● Behind ● Done ──┤
+│ ┌ Target ────────┬ Sep (now) ┬ Oct ┬ Nov ──────────┬ … ┬ Aug ┐       │
+│ │● T1 · Build AI │    —      │  —  │ 7 topics      │   │     │       │
+│ │ On track · 34% │           │     │ ● Process inv │   │     │       │
+│ │ 0/26 done      │           │     │ ● Backlog     │   │     │       │
+│ │ View detail →  │           │     │               │   │     │       │
+│ └────────────────┴───────────┴─────┴───────────────┴───┴─────┘       │
+└─────────────────────────────────────────────────────────────────────┘</pre>
+<ul>
+<li><b>Header</b> (<code>AppHeader</code>): plan title, fiscal period, source file name + last import time. View toggle <b>Month (default)</b> | Quarter. <code>Import…</code> primary button.</li>
+<li><b>Next actions</b> (<code>NextActions</code>): one list, top 5. Row = status dot · target id · action text (full action, not the deliverable — deliverables like "12 monthly reports" read poorly out of context) · status label · due text (<code>↻ due 30 Sep</code> for recurring, <code>due Nov</code> otherwise). Subtitle: <code>Q&lt;n&gt; · &lt;count&gt; open this quarter</code>. Row click → that target's detail page.</li>
+<li><b>Status legend</b> (<code>StatusLegend</code>): above grid, 5 statuses + note "colored cell edge = has an At risk / Behind topic".</li>
+<li><b>Timeline grid</b> (<code>TimelineGrid</code>):</li>
+<li>Columns: first column "Target" (220px), then 12 months Sep→Aug (Month view, header sub-label Q1..Q4) or 4 quarters with date ranges (Quarter view). Current month/quarter column highlighted (<code>--now</code>) with "now" sub-label.</li>
+<li>Rows: one per target (T1..Tn, in sheet order).</li>
+<li>Target cell (<code>TargetCell</code>): status dot + <code>T1 · &lt;name&gt;</code>; line 2 <code>&lt;status label&gt; · &lt;weight&gt;% · &lt;owner&gt;</code>; line 3 <code>&lt;done&gt;/&lt;total&gt; done</code> + <code>↻ n ongoing</code> when any; link text <code>View detail →</code>.</li>
+<li>Period cell (<code>PeriodCell</code>): <code>&lt;n&gt; topics</code> count + list of topics (deliverable short name), each with status dot. Empty → <code>—</code>. Month view places a topic at its <b>due month</b>; Quarter view at its quarter. Ongoing actions are not placed in cells (counted on target cell only).</li>
+<li>Cell containing any Behind topic → 3px red left edge; else any At risk → 3px amber left edge.</li>
+<li>Whole target cell and every period cell are links → <code>/target/&lt;id&gt;</code>.</li>
+</ul>
+<p>States (stacked in mockup):</p>
+<ul>
+<li><b>filled</b> — above.</li>
+<li><b>empty</b> (nothing imported yet): card "No plan loaded", drop zone "Drop .xlsx / .csv here" + <code>Choose file…</code>, note "The imported plan is shown to everyone with the link."</li>
+<li><b>loading</b> (importing): "Uploading &amp; reading &lt;file&gt;", progress bar, "Current plan stays visible until done".</li>
+<li><b>error</b> (file doesn't match template): "Couldn't import this file" + list of per-sheet/per-row problems (e.g. <code>T2 — action table not found</code>, <code>T3 row 27 — due "Q5 2027" is not a month</code>), "Nothing replaced — still showing the import from &lt;date&gt;", <code>Choose another file</code>.</li>
+</ul>
+<p>Interactions:</p>
+<ul>
+<li>Month/Quarter toggle re-renders grid; Month is default on load.</li>
+<li><code>Import…</code> → file picker (.xlsx, .csv) → upload → server validates → success replaces plan for everyone; failure shows error state, keeps previous plan.</li>
+<li>Click target / cell / next-action row → navigate to <code>/target/&lt;id&gt;</code>.</li>
+</ul>
+<h3>target (detail page, route <code>/target/:id</code>)</h3>
+<p>Layout:</p>
+<pre>┌ ← Back to timeline                         AXC Action Plan · FY2026-27 ┐
+├ ● T1 · Build AI Tools &amp; Automation ────────────────────────────────────┤
+│ Weight 34% │ Owner Developer │ Status On track │ Progress 1/26 ▓░░░     │
+│ &lt;objective paragraph&gt;                                                   │
+├ Next for this target ──────────────────────────────────────────────────┤
+│ 1. Process inventory + needs survey — Developer · due Nov 2026         │  top 3
+├ Action plan  [legend badges] ──────────────────────────────────────────┤
+│ Q1  Sep – Nov 2026 · 7 actions  (now)                                  │
+│  # │ Action → deliverable │ Success measure │ Owner │ Due │ [Status]   │
+│ Q2 … Q3 … Q4 …                                                          │
+├ ▸ What this must achieve (open) ▸ How we will do it ▸ Depends on       │
+│ ▸ Risks ▸ Change history                                               │
+└────────────────────────────────────────────────────────────────────────┘</pre>
+<ul>
+<li><b>Back link</b> → <code>/</code> (timeline).</li>
+<li><b>Header card</b> (<code>TargetHeader</code>): status dot + <code>&lt;id&gt; · &lt;name&gt;</code>; facts row Weight / Owner / Status (colored) / Progress <code>&lt;done&gt;/&lt;total&gt; done</code> + bar; objective paragraph.</li>
+<li><b>Next for this target</b> (<code>NextActions</code> scoped to target): ordered list, top 3: <code>&lt;deliverable&gt; — &lt;owner&gt; · due &lt;due&gt;</code>.</li>
+<li><b>Action plan</b> (<code>ActionPlan</code>): status legend badges under heading; one block per quarter <code>Q&lt;n&gt; &lt;date range&gt; · &lt;n&gt; actions</code>, current quarter tagged <code>now</code>; table columns <code># | Action (+ "→ deliverable" sub-line) | Success measure | Owner | Due | Status</code>. Status = filled color badge. At risk / Behind rows get colored left edge. Empty measure → <code>—</code>. Ongoing actions listed in their section with Due <code>monthly</code>/<code>quarterly</code>.</li>
+<li><b>Details</b> (<code>TargetSections</code>): collapsible <code>&lt;details&gt;</code> — What this must achieve (open by default), How we will do it, Depends on, Risks, Change history ("No changes recorded" when empty).</li>
+</ul>
+<p>States:</p>
+<ul>
+<li><b>filled</b> — above.</li>
+<li><b>not found</b>: "Target not found — "T5" isn't in the current import. Back to timeline".</li>
+</ul>
+<p>Interactions: back link; expand/collapse sections. No editing (read-only).</p>
+<p>---</p>
+<h3>Revision 2 — adaptive import (template v2.1)</h3>
+<p>Agreed 2026-09-29: a file whose <b>layout</b> can't be read still shows the error panel; a file with <b>new words</b> opens a mapping dialog; mappings are saved and applied to later imports automatically.</p>
+<h4>Status words and tones (all screens)</h4>
+<ul>
+<li>A status has a <b>word</b> (from the file, e.g. "In progress") and a <b>tone</b> (one of 5: Not started / On track / At risk / Behind / Done). Color always comes from the tone; the text shown is always the file's own word.</li>
+<li>Built-in words map to their own tone. Other words map through saved mappings.</li>
+</ul>
+<h4>import-mapping dialog (<code>mockups/import-mapping.html</code>) — new <code>ImportMappingDialog</code></h4>
+<pre>┌ New values in &quot;&lt;file name&gt;&quot; ──────────────────────────────────────────┐
+│ This file uses words Roadline doesn&#x27;t know yet. Choose what each means │
+│ STATUS   Word │ Found (n actions + rows) │ Means [select] suggested │ Shown as ● word │
+│ QUARTER  Word │ Found (n actions, per target) │ Means [Q1–Q4/Ongoing/Next year] │ note │
+│ DUE      (only for words on rows whose quarter is not Next year) [Next year / End of its quarter] │
+│ ⓘ Due &quot;Next year&quot; on these rows follows the quarter — nothing to choose │
+├──────────────────────────────────────────────────────────────────────┤
+│ Saved for everyone … edit data/mappings.json      [Cancel] [Apply &amp; import] │
+└──────────────────────────────────────────────────────────────────────┘</pre>
+<ul>
+<li>Modal over the timeline (scrim), 760px wide, <code>.card</code>-style surface, header / scrolling body / footer.</li>
+<li>One group per field that has new words: Status, Quarter, Due. Each row: word, where it was found (count + sheet rows, or "listed in the file's Status dropdown" when it appears only in the file's dropdown list), a <code>&lt;select&gt;</code> pre-filled with the suggestion and labelled "suggested", and for status a live preview (<code>.dot</code> + word in the chosen tone color).</li>
+<li>Buttons reuse <code>.btn</code> / <code>.btn.primary</code>.</li>
+<li>States: <b>filled</b> (above) · <b>applying</b> (both buttons disabled, primary shows spinner "Importing…") · <b>cancelled</b> (dialog closes, nothing imported or saved, note under header "Import cancelled — &lt;file&gt; was not imported.") · <b>layout broken</b> → no dialog, existing error panel (<code>ImportError</code>) with the note "Mapping is only offered once the layout can be read."</li>
+</ul>
+<h4>timeline changes (<code>mockups/timeline.html</code>)</h4>
+<ul>
+<li><b>Import notes</b> (<code>ImportNotes</code>, new) under the header, each dismissable (×):</li>
+<li>info (grey, ⓘ): "Applied saved mappings: &lt;word&gt; → &lt;meaning&gt; · …" — shown after an import that used saved mappings.</li>
+<li>warning (amber, ⚠): "Template version &lt;v&gt; is newer than tested &lt;tested&gt;. Shown once for this version." — only on the first import of that version.</li>
+<li><b>Next year column</b>: after Aug (month view) or Q4 (quarter view), header "Next year" / sub-label "FY27-28" (the next fiscal year). Background <code>--next</code>, 2px dashed left border. Lists next-year topics like any cell. Hidden when no action is next-year.</li>
+<li><b>Target cell</b>: progress counts <b>this year only</b> (<code>2 / 12 done</code>) and adds <code>· n next year</code> when any.</li>
+<li><b>Legend</b> (<code>StatusLegend</code>): grouped by tone; after each tone label, the file words mapped to it that appear in the plan, e.g. "● On track (In progress)". Note text adds "┆ Next year = not in this year's progress".</li>
+<li><b>Next actions</b>: never lists next-year actions; subtitle adds "· n moved to next year". Rows show the file's word (e.g. "In progress") in the tone color. Behind-tone actions (incl. "Blocked") rank first together with overdue ones.</li>
+<li>States: built-in words only → no notes; same file re-imported → only the info line; no next-year actions → no Next-year column.</li>
+</ul>
+<h4>target changes (<code>mockups/target.html</code>)</h4>
+<ul>
+<li><b>Progress</b>: <code>&lt;done&gt; / &lt;this-year total&gt; done</code>, bar, and sub-line "this year · n more next year" when any.</li>
+<li><b>Badge legend</b>: grouped like the timeline legend ("On track (In progress)").</li>
+<li><b>Status badges</b>: file's own word, tone color.</li>
+<li><b>Next year block</b> after Q4: "Next year · FY27-28 · n actions" + tag "not in this year's progress" + hint "Mapped from quarter "FY27-28"."; same table; <code>--next</code> background, dashed border. Hidden when none.</li>
+<li><b>Next for this target</b>: excludes next-year actions.</li>
+</ul>
+<h3>Verify hooks (for capture's tasks.md)</h3>
+<ul>
+<li><code>Verify: /devspec-verify roadline-v1</code> — timeline: header, Month default active, 12 month columns + Q labels, 4 target rows, status legend present, cells show status dots, flagged-cell edge color computed (not default), Quarter toggle → 4 columns; click target → <code>/target/T1</code> renders header/next/action plan/details; back link returns; empty + error states render on bad import.</li>
+<li>Revision 2: import the v2.1 fixture → mapping dialog lists In progress / Blocked / FY27-28 with suggestions; apply → timeline shows 13 columns (Next year last), T1 <code>2 / 12 done · 7 next year</code>, legend "On track (In progress)", info + version notes; re-import → no dialog, info note only; <code>/target/T1</code> shows the Next year block (7 rows).</li>
+<li><code>Verify: MANUAL: BA approves screenshot</code> — with matching <code>- [ ] MANUAL: BA approves screenshot</code> subtask.</li>
+</ul><h3>Mockup: import-mapping.html <a href="mockups/import-mapping.html" target="_blank">open standalone ↗</a></h3><iframe src="mockups/import-mapping.html"></iframe><h3>Mockup: target.html <a href="mockups/target.html" target="_blank">open standalone ↗</a></h3><iframe src="mockups/target.html"></iframe><h3>Mockup: timeline.html <a href="mockups/timeline.html" target="_blank">open standalone ↗</a></h3><iframe src="mockups/timeline.html"></iframe></section><section id="tasks"><h2>Tasks by layer</h2><h3 class="layer">[backend] <small>11 subtasks</small></h3><ul><li class="task">☑ <b>1.1</b> Create <code>package.json</code> (npm) with deps <code>express</code>, <code>multer</code>, <code>xlsx</code>, <code>react</code>, <code>react-dom</code>, <code>react-router-dom</code>; dev deps <code>typescript</code>, <code>vite</code>, <code>@vitejs/plugin-react</code>, <code>vitest</code>, <code>supertest</code>, <code>@testing-library/react</code>, <code>jsdom</code>, <code>tsx</code>, <code>eslint</code>, <code>typescript-eslint</code>, <code>prettier</code>. Scripts: <code>dev</code>, <code>build</code> (vite build → <code>dist/client</code>, tsc → <code>dist/server</code>), <code>start</code> (<code>node dist/server/index.js</code>), <code>test</code> (<code>vitest run</code>), <code>lint</code> <span class="sec">— 1. Project scaffold <span class="req">req-13</span></span></li><li class="task">☑ <b>1.2</b> <code>tsconfig.json</code> (strict) + <code>tsconfig.server.json</code>, <code>vite.config.ts</code> (proxy <code>/api</code> → 3000 in dev), <code>vitest.config.ts</code>, <code>.prettierrc</code>, <code>eslint.config.js</code> <span class="sec">— 1. Project scaffold <span class="req">req-13</span></span></li><li class="task">☑ <b>1.3</b> <code>.gitignore</code>: <code>node_modules/</code>, <code>dist/</code>, <code>data/</code> <span class="sec">— 1. Project scaffold <span class="req">req-13</span></span></li><li class="task">☑ <b>3.1</b> <code>src/server/read-grid.ts</code> — <code>readGrid(buffer, fileName): Record&lt;string, Cell[][]&gt;</code> via SheetJS (<code>header: 1, raw: true, defval: null</code>) <span class="sec">— 3. AXC workbook parser <span class="req">req-1, req-2</span></span></li><li class="task">☑ <b>6.1</b> <code>src/server/plan-store.ts</code> — <code>PlanStore(dataDir)</code>: <code>load(): Plan | null</code>, <code>save(plan, buffer, fileName)</code> (copy current → <code>plan.prev.json</code>, write <code>plan.tmp.json</code>, rename → <code>plan.json</code>, keep <code>uploads/&lt;ISO&gt;-&lt;name&gt;</code>); serialize saves with a promise queue <span class="sec">— 6. Server API and storage <span class="req">req-4, req-5, req-13</span></span></li><li class="task">☑ <b>6.2</b> <code>src/server/app.ts</code> — <code>createApp({ dataDir })</code>: <code>GET /api/plan</code> (200 | 404 <code>no_plan</code>); <code>POST /api/plan</code> via multer memory storage, 5 MB limit, <code>.xlsx</code>/<code>.csv</code> only → <code>readGrid</code> → <code>parseAxcWorkbook</code> (xlsx) or <code>parseFlatCsv</code> (csv) → 200 <code>{ plan, warnings }</code> | 400 <code>{ error: 'invalid_plan', problems }</code> | 413 <code>file_too_large</code> | 415 <code>unsupported_type</code> <span class="sec">— 6. Server API and storage <span class="req">req-4, req-5, req-13</span></span></li><li class="task">☑ <b>6.3</b> Static hosting of <code>dist/client</code> with <code>index.html</code> fallback for non-<code>/api</code> GETs <span class="sec">— 6. Server API and storage <span class="req">req-4, req-5, req-13</span></span></li><li class="task">☑ <b>6.4</b> <code>src/server/index.ts</code> — read <code>PORT</code> (3000) and <code>DATA_DIR</code> (<code>./data</code>), start the app <span class="sec">— 6. Server API and storage <span class="req">req-4, req-5, req-13</span></span></li><li class="task">☑ <b>11.1</b> <code>src/server/read-grid.ts</code> — return <code>{ grid, dropdowns }</code>; read with SheetJS <code>bookFiles: true</code>, map sheet name → XML via <code>xl/workbook.xml</code> + <code>xl/_rels/workbook.xml.rels</code> (not <code>Directory.sheets</code> order), collect <code>&lt;dataValidation type="list"&gt;</code> with inline <code>formula1</code>; CSV → <code>dropdowns = {}</code> <span class="sec">— 11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></span></li><li class="task">☑ <b>12.1</b> <code>src/server/mapping-store.ts</code> (new) — <code>MappingStore(dataDir)</code>: <code>load(): Mappings</code>, <code>merge(partial, version?)</code> atomic write of <code>data/mappings.json</code> (temp + rename), serialized like <code>PlanStore</code> <span class="sec">— 12. API: mapping round trip <span class="req">req-15, req-19</span></span></li><li class="task">☑ <b>12.2</b> <code>src/server/app.ts</code> <code>POST /api/plan</code> — read optional multipart <code>mapping</code> (JSON) → 400 <code>invalid_mapping</code> if bad; parse with saved ∪ submitted mappings; <code>needsMapping</code> → 422 <code>{ error: 'needs_mapping', unknown }</code> (nothing saved); success → <code>PlanStore.save</code>, <code>MappingStore.merge(submitted, version)</code>, respond <code>{ plan, warnings, applied }</code>; version warning only when newer than tested and not in <code>seenVersions</code> <span class="sec">— 12. API: mapping round trip <span class="req">req-15, req-19</span></span></li></ul><h3 class="layer">[service] <small>15 subtasks</small></h3><ul><li class="task">☑ <b>2.1</b> <code>src/shared/model.ts</code> — types <code>Status</code>, <code>Quarter</code>, <code>Due</code>, <code>Action</code>, <code>Target</code>, <code>Plan</code>, <code>Problem</code>, <code>ParseResult</code> per design.md <span class="sec">— 2. Model and fiscal calendar <span class="req">req-6, req-8</span></span></li><li class="task">☑ <b>2.2</b> <code>src/shared/status.ts</code> — <code>parseStatus(text)</code> (case-insensitive, blank → <code>not_started</code>), <code>STATUS_LABEL</code>, <code>STATUS_ORDER</code> <span class="sec">— 2. Model and fiscal calendar <span class="req">req-6, req-8</span></span></li><li class="task">☑ <b>2.3</b> <code>src/shared/fiscal.ts</code> — <code>monthColumns(plan)</code>, <code>quarterColumns(plan)</code>, <code>placeMonth(action)</code>, <code>placeQuarter(action)</code>, <code>currentPeriod(plan, today)</code> <span class="sec">— 2. Model and fiscal calendar <span class="req">req-6, req-8</span></span></li><li class="task">☑ <b>3.2</b> <code>src/shared/parse-axc.ts</code> — <code>parseAxcWorkbook(grid, fileName, importedAt): ParseResult</code>: target sheets by A1 <code>^(T\d+)\s*-\s*(.+)$</code>; header weight/owner/status; block headings by label; action table by header aliases; section rows; value parsing (quarter, due, status); list blocks, risks, change history; Executive Summary period, version, title <span class="sec">— 3. AXC workbook parser <span class="req">req-1, req-2</span></span></li><li class="task">☑ <b>3.3</b> Problems collected with <code>{ sheet, row, message }</code>; any problem → <code>{ ok: false }</code>; version &gt; "2.0" → warning <span class="sec">— 3. AXC workbook parser <span class="req">req-1, req-2</span></span></li><li class="task">☑ <b>4.1</b> <code>src/shared/parse-csv.ts</code> — <code>parseFlatCsv(grid, fileName, importedAt): ParseResult</code>; required columns per design.md; target fields from first row per target; fiscal start from earliest month due <span class="sec">— 4. Flat CSV parser <span class="req">req-3</span></span></li><li class="task">☑ <b>5.1</b> <code>src/shared/next-actions.ts</code> — <code>nextActions(plan, today, { limit, targetId? })</code> with <code>nextDate</code> rules and sort order from design.md; returns <code>{ action, nextDate, overdue }[]</code> <span class="sec">— 5. Next-action ranking <span class="req">req-7</span></span></li><li class="task">☑ <b>5.2</b> <code>src/shared/progress.ts</code> — <code>progress(target)</code> → <code>{ done, total }</code> <span class="sec">— 5. Next-action ranking <span class="req">req-7</span></span></li><li class="task">☑ <b>10.1</b> <code>src/shared/model.ts</code> — add <code>statusWord: string</code> to <code>Action</code> and <code>Target</code>; <code>quarter: Quarter | 'ongoing' | 'next_year'</code>; <code>Due</code> adds <code>{ kind: 'next_year' }</code>; new <code>MappingField</code>, <code>QuarterMeaning</code>, <code>DueMeaning</code>, <code>Mappings</code>, <code>UnknownValue</code>, <code>AppliedMapping</code>; <code>ParseResult</code> adds <code>applied</code> on ok and the <code>{ ok: false; needsMapping }</code> branch (per design.md revision 2) <span class="sec">— 10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></span></li><li class="task">☑ <b>10.2</b> <code>src/shared/suggest.ts</code> (new) — <code>normWord(word)</code>, <code>suggestStatus</code>, <code>suggestQuarter</code>, <code>suggestDue</code> with the keyword lists in design.md <span class="sec">— 10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></span></li><li class="task">☑ <b>10.3</b> <code>src/shared/fiscal.ts</code> — <code>hasNextYear(plan)</code>, <code>nextFiscalLabel(plan)</code>; <code>monthColumns</code> / <code>quarterColumns</code> take <code>{ nextYear }</code> and append a <code>Next year</code> column; <code>placeMonth</code> → 12 and <code>placeQuarter</code> → 4 for next-year actions <span class="sec">— 10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></span></li><li class="task">☑ <b>10.4</b> <code>src/shared/progress.ts</code> — <code>progress(target)</code> → <code>{ done, total, nextYear }</code>, this year only <span class="sec">— 10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></span></li><li class="task">☑ <b>10.5</b> <code>src/shared/next-actions.ts</code> — skip next-year actions; overdue <b>or</b> tone <code>behind</code> first, then the existing order <span class="sec">— 10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></span></li><li class="task">☑ <b>11.2</b> <code>src/shared/parse-axc.ts</code> — <code>parseAxcWorkbook(grid, fileName, importedAt, { mappings, dropdowns })</code>: keep the file word in <code>statusWord</code>; resolve words through built-ins then <code>mappings</code>; collect unknown status / quarter / due words (rows + status dropdown lists) with counts, first 10 locations, <code>fromDropdown</code>, suggestion; quarter <code>next_year</code> forces <code>due = { kind: 'next_year' }</code> and skips its due word; due <code>quarter_end</code> → last month of the quarter; order of checks per design.md; return <code>applied</code> <span class="sec">— 11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></span></li><li class="task">☑ <b>11.3</b> <code>src/shared/parse-csv.ts</code> — same word resolution, unknown collection and <code>applied</code> for <code>status</code>, <code>target_status</code>, <code>quarter</code>, <code>due</code> <span class="sec">— 11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></span></li></ul><h3 class="layer">[frontend] <small>24 subtasks</small></h3><ul><li class="task">☑ <b>7.1</b> <code>src/client/styles.css</code> — <code>:root</code> tokens from <code>ui.md</code> (surface, <code>--now</code>, <code>--s-ns|ok|risk|behind|done</code>), base layout <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>7.2</b> <code>src/client/main.tsx</code> + <code>app.tsx</code> — React Router routes <code>/</code> and <code>/target/:id</code>; <code>use-plan.ts</code> hook (fetch <code>/api/plan</code>, <code>replace(plan)</code>); <code>use-today.ts</code> (local date, <code>?today=</code> override) <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>7.3</b> <code>components/app-header.tsx</code> — title, period, source file + import time, Month|Quarter toggle (Month default), Import button slot <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>7.4</b> <code>components/status-dot.tsx</code>, <code>components/status-legend.tsx</code> — five statuses + "colored cell edge" note <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>7.5</b> <code>components/next-actions.tsx</code> — list from <code>nextActions(plan, today, { limit })</code>; row = dot · target id · action text · status label · due text (<code>↻ due 30 Sep</code> / <code>due Nov</code>); links to <code>/target/:id</code> <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>7.6</b> <code>components/timeline-grid.tsx</code> — target column (dot, name, status · weight · owner, done/total, <code>↻ n ongoing</code>, "View detail →") + period cells (count, topic list with dots, <code>—</code> when empty, <code>now</code> highlight, red/amber left edge); every cell links to <code>/target/:id</code> <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>7.7</b> <code>pages/timeline-page.tsx</code> — header, next actions, legend, grid <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>8.1</b> <code>components/import-button.tsx</code> — hidden file input (<code>.xlsx,.csv</code>), posts <code>FormData</code> to <code>/api/plan</code>, calls <code>replace(plan)</code> on 200 <span class="sec">— 8. Import from the page <span class="req">req-11</span></span></li><li class="task">☑ <b>8.2</b> <code>components/import-states.tsx</code> — empty (drop zone + Choose file, "shown to everyone with the link"), loading (file name + progress bar, current plan stays visible), error (problem list, "Nothing replaced — still showing the import from &lt;date&gt;", Choose another file) <span class="sec">— 8. Import from the page <span class="req">req-11</span></span></li><li class="task">☑ <b>9.1</b> <code>components/target-header.tsx</code> — dot + <code>&lt;id&gt; · &lt;name&gt;</code>, Weight / Owner / Status (colored) / Progress with bar, objective <span class="sec">— 9. Target detail page <span class="req">req-12</span></span></li><li class="task">☑ <b>9.2</b> <code>components/action-plan.tsx</code> — legend badges; one block per quarter (<code>Q&lt;n&gt; &lt;range&gt; · &lt;n&gt; actions</code>, <code>now</code> tag); table <code># | Action (+ → deliverable) | Success measure | Owner | Due | Status badge</code>; risk/behind row edge; ongoing actions under their quarter-less block "Ongoing" <span class="sec">— 9. Target detail page <span class="req">req-12</span></span></li><li class="task">☑ <b>9.3</b> <code>components/target-sections.tsx</code> — <code>&lt;details&gt;</code>: What this must achieve (open), How we will do it, Depends on, Risks, Change history ("No changes recorded") <span class="sec">— 9. Target detail page <span class="req">req-12</span></span></li><li class="task">☑ <b>9.4</b> <code>pages/target-page.tsx</code> — back link, header, next 3 (<code>nextActions</code> with <code>targetId</code>), action plan, sections; "Target not found" state <span class="sec">— 9. Target detail page <span class="req">req-12</span></span></li><li class="task">☑ <b>13.1</b> <code>src/client/components/status-dot.tsx</code> — <code>StatusDot</code>, <code>StatusLabel</code>, <code>StatusBadge</code> take <code>{ status, word }</code>; text = word (empty → "Not started"), color = tone class <code>bg-&lt;tone&gt;</code> / <code>fg-&lt;tone&gt;</code> <span class="sec">— 13. Status words and grouped legend <span class="req">req-17</span></span></li><li class="task">☑ <b>13.2</b> <code>src/client/components/status-legend.tsx</code> — <code>StatusLegend({ plan })</code> groups the plan's words by tone: "On track (In progress)"; note adds "┆ Next year = not in this year's progress" when the plan has next-year actions <span class="sec">— 13. Status words and grouped legend <span class="req">req-17</span></span></li><li class="task">☑ <b>13.3</b> Pass <code>statusWord</code> everywhere status is shown: <code>next-actions.tsx</code>, <code>timeline-grid.tsx</code>, <code>target-header.tsx</code>, <code>action-plan.tsx</code> (grouped badge legend), <code>pages/target-page.tsx</code> <span class="sec">— 13. Status words and grouped legend <span class="req">req-17</span></span></li><li class="task">☑ <b>14.1</b> <code>src/client/api.ts</code> — <code>uploadPlan(file, mapping?)</code> sends <code>mapping</code> as a multipart JSON field; 422 → <code>{ ok: false, needsMapping }</code>; 200 → <code>{ ok: true, plan, warnings, applied }</code> <span class="sec">— 14. Mapping dialog and import notes <span class="req">req-18, req-19</span></span></li><li class="task">☑ <b>14.2</b> <code>src/client/components/import-mapping-dialog.tsx</code> (new) — modal per <code>mockups/import-mapping.html</code>: groups Status / Quarter / Due, rows = word · found (count + locations, or "listed in the file's Status dropdown") · <code>&lt;select&gt;</code> with suggestion + "suggested" · status preview (<code>StatusDot</code> + word); footer note, <code>.btn</code> Cancel, <code>.btn.primary</code> "Apply &amp; import"; applying state disables both and shows "Importing…" <span class="sec">— 14. Mapping dialog and import notes <span class="req">req-18, req-19</span></span></li><li class="task">☑ <b>14.3</b> <code>src/client/components/import-notes.tsx</code> (new) — dismissable info line "Applied saved mappings: …" and amber warning line for warnings (template version), per <code>mockups/timeline.html</code> <span class="sec">— 14. Mapping dialog and import notes <span class="req">req-18, req-19</span></span></li><li class="task">☑ <b>14.4</b> <code>src/client/pages/timeline-page.tsx</code> — import flow: <code>needsMapping</code> → open dialog with the file kept in state; Apply → <code>uploadPlan(file, mapping)</code>; Cancel → note "Import cancelled — &lt;file&gt; was not imported."; success → <code>replace(plan)</code> + notes <span class="sec">— 14. Mapping dialog and import notes <span class="req">req-18, req-19</span></span></li><li class="task">☑ <b>15.1</b> <code>src/client/styles.css</code> — token <code>--next: #f3f4f8</code>; <code>.hd.ny</code>, <code>.cell.ny</code> (background <code>--next</code>, 2px dashed left border); <code>.q.ny</code> block and <code>.ny-tag</code> <span class="sec">— 15. Next-year UI <span class="req">req-16, req-20</span></span></li><li class="task">☑ <b>15.2</b> <code>src/client/components/timeline-grid.tsx</code> — append the Next-year column (<code>hasNextYear</code>, <code>nextFiscalLabel</code>) in both views; target cell <code>&lt;done&gt; / &lt;total&gt; done · n next year</code> <span class="sec">— 15. Next-year UI <span class="req">req-16, req-20</span></span></li><li class="task">☑ <b>15.3</b> <code>src/client/components/next-actions.tsx</code> — subtitle adds "· n moved to next year" <span class="sec">— 15. Next-year UI <span class="req">req-16, req-20</span></span></li><li class="task">☑ <b>15.4</b> <code>src/client/components/target-header.tsx</code> — progress this year + sub-line "this year · n more next year"; <code>src/client/components/action-plan.tsx</code> — "Next year · FY27-28 · n actions" block after Q4 with tag and hint <span class="sec">— 15. Next-year UI <span class="req">req-16, req-20</span></span></li></ul><h3 class="layer">[test] <small>18 subtasks</small></h3><ul><li class="task">☑ <b>1.4</b> Copy the workbook to <code>tests/fixtures/axc-fy2026-27.xlsx</code> (source: <code>C:\Users\hung.lay\Downloads\[AXC] AXC_Team_Objectives_ActionPlan_FY2026-2027.xlsx</code>; fallback per Impact Area) <span class="sec">— 1. Project scaffold <span class="req">req-13</span></span></li><li class="task">☑ <b>2.4</b> <code>tests/fiscal.test.ts</code> — 12 columns Sep 2026…Aug 2027 with Q labels; Feb 2027 → month col 6 / Q2; ongoing → none; 28 Sep 2026 → Sep/Q1; 1 Oct 2027 → null <span class="sec">— 2. Model and fiscal calendar <span class="req">req-6, req-8</span></span></li><li class="task">☑ <b>3.4</b> <code>tests/parse-axc.test.ts</code> — fixture: 4 targets, 26/21/18/10 actions, fiscal {2026, 9}, version "2.0"; T1 #1 fields; T4 section "Actions"; T3 #9 ongoing monthly; T2 7 must-achieve + 3 depends-on; T4 2 risks <span class="sec">— 3. AXC workbook parser <span class="req">req-1, req-2</span></span></li><li class="task">☑ <b>3.5</b> Same file, grid-mutation cases: remove T2 header row → problem "action table not found" on "T2 Adoption"; Due "Q5 2027" → problem with sheet + row; version "3.0" → ok with warning <span class="sec">— 3. AXC workbook parser <span class="req">req-1, req-2</span></span></li><li class="task">☑ <b>4.2</b> <code>tests/parse-csv.test.ts</code> — 3-row T1 CSV → 1 target, 3 actions, fiscal start Sep; missing <code>due</code> column → problem naming it <span class="sec">— 4. Flat CSV parser <span class="req">req-3</span></span></li><li class="task">☑ <b>5.3</b> <code>tests/next-actions.test.ts</code> — fixture, 28 Sep 2026, limit 5 → T3#9, T1#1, T1#2, T1#3, T1#4; overdue first, done excluded; targetId T2 limit 3 → only T2, ≤3 <span class="sec">— 5. Next-action ranking <span class="req">req-7</span></span></li><li class="task">☑ <b>6.5</b> <code>tests/api.test.ts</code> (supertest, temp data dir) — 404 before import; valid upload → 200 + <code>plan.json</code>; second upload → <code>plan.prev.json</code> exists; invalid upload → 400 and GET returns previous; <code>.pdf</code> → 415; 6 MB → 413; <code>GET /target/T1</code> → HTML <span class="sec">— 6. Server API and storage <span class="req">req-4, req-5, req-13</span></span></li><li class="task">☑ <b>7.8</b> <code>tests/timeline-page.test.tsx</code> (testing-library, fixture plan, today 28 Sep 2026) — Month active, 12 columns, Sep has "now", T1/Nov lists 7 topics; Quarter → 4 columns, T1/Q1 7 topics; first next action is T3 monthly report; Behind topic → cell has red edge class <span class="sec">— 7. Timeline page <span class="req">req-8, req-9, req-10</span></span></li><li class="task">☑ <b>8.3</b> <code>tests/import.test.tsx</code> (mocked fetch) — 404 → empty state; success → header shows new file name; 400 → error panel with problems and previous plan still rendered <span class="sec">— 8. Import from the page <span class="req">req-11</span></span></li><li class="task">☑ <b>9.5</b> <code>tests/target-page.test.tsx</code> — <code>/target/T1</code>: name, 34%, Developer, 0 / 26, 3 next items, Q1 has now, 5 sections; <code>/target/T9</code> → "Target not found" <span class="sec">— 9. Target detail page <span class="req">req-12</span></span></li><li class="task">☑ <b>10.6</b> Update <code>tests/fiscal.test.ts</code>, <code>tests/next-actions.test.ts</code> (Behind-first + next-year excluded; 28 Sep v2.0 order unchanged), add <code>tests/suggest.test.ts</code> <span class="sec">— 10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></span></li><li class="task">☑ <b>11.4</b> Copy <code>C:\Users\hung.lay\Downloads\[AXC] AXC_Team_Objectives_ActionPlan_FY2026-2027 (1).xlsx</code> to <code>tests/fixtures/axc-fy2026-27-v2.1.xlsx</code>; <code>tests/parse-axc-v21.test.ts</code> — no mappings → needsMapping (In progress ×7, Blocked ×0 from dropdown, FY27-28 ×14, no due asked); with mappings → ok, T1 12 + 7 next year, T1 #4 <code>on_track</code>/"In progress", 52 this-year actions, <code>applied</code> has 3 entries; TBD + <code>quarter_end</code> on a Q3 row → May; layout break still gives problems <span class="sec">— 11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></span></li><li class="task">☑ <b>11.5</b> Update <code>tests/parse-axc.test.ts</code> (due "Nov 2028" → outside-fiscal-year problem; "Blocked" → needsMapping), <code>tests/parse-csv.test.ts</code>, <code>tests/helpers.ts</code> (<code>readGrid(...).grid</code>) <span class="sec">— 11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></span></li><li class="task">☑ <b>12.3</b> <code>tests/api.test.ts</code> — v2.1 first upload → 422, no <code>plan.json</code> change, no <code>mappings.json</code>; retry with mapping → 200 + <code>mappings.json</code>; third upload without mapping → 200 with <code>applied</code>; bad JSON / unknown meaning → 400 <code>invalid_mapping</code>; version warning on first v2.1 import only <span class="sec">— 12. API: mapping round trip <span class="req">req-15, req-19</span></span></li><li class="task">☑ <b>13.4</b> <code>tests/timeline-page.test.tsx</code> — mapped v2.1 plan: legend "On track (In progress)", T1 #4 dot has <code>bg-on_track</code> and title "In progress" <span class="sec">— 13. Status words and grouped legend <span class="req">req-17</span></span></li><li class="task">☑ <b>14.5</b> <code>tests/import.test.tsx</code> — 422 → dialog lists 3 words with suggestions; Apply posts the same file with <code>mapping</code> and renders the plan + applied note; Cancel shows the cancelled note and posts nothing more <span class="sec">— 14. Mapping dialog and import notes <span class="req">req-18, req-19</span></span></li><li class="task">☑ <b>15.5</b> <code>tests/timeline-page.test.tsx</code> + <code>tests/target-page.test.tsx</code> — mapped v2.1 plan: 13 columns, Next-year topics 7/5/2/0, T1 "2 / 12 done · 7 next year"; T1 page Next-year block with 7 rows; v2.0 plan has no Next-year column or block <span class="sec">— 15. Next-year UI <span class="req">req-16, req-20</span></span></li><li class="task">☑ <b>16.1</b> <code>npm run build &amp;&amp; npm start</code>; import the v2.0 fixture (no dialog), then the v2.1 fixture (dialog → Apply), then v2.1 again (no dialog, info note only); open <code>/?today=2026-09-29</code> and <code>/target/T1?today=2026-09-29</code>; compare against <code>mockups/timeline.html</code>, <code>mockups/target.html</code>, <code>mockups/import-mapping.html</code>; screenshots to <code>verify/</code> <span class="sec">— 16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></span></li></ul><h3 class="layer">[manual] <small>1 subtasks</small></h3><ul><li class="task">☐ <b>16.2</b> MANUAL: BA approves screenshots of the timeline, T1 detail and mapping dialog <span class="sec">— 16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></span></li></ul><h3>Sections &amp; Verify</h3><table><tr><th>Section</th><th>Verify</th></tr><tr><td>1. Project scaffold <span class="req">req-13</span></td><td><code>npm install &amp;&amp; npm run lint &amp;&amp; npx tsc --noEmit</code></td></tr><tr><td>2. Model and fiscal calendar <span class="req">req-6, req-8</span></td><td><code>npx vitest run tests/fiscal.test.ts</code></td></tr><tr><td>3. AXC workbook parser <span class="req">req-1, req-2</span></td><td><code>npx vitest run tests/parse-axc.test.ts</code></td></tr><tr><td>4. Flat CSV parser <span class="req">req-3</span></td><td><code>npx vitest run tests/parse-csv.test.ts</code></td></tr><tr><td>5. Next-action ranking <span class="req">req-7</span></td><td><code>npx vitest run tests/next-actions.test.ts</code></td></tr><tr><td>6. Server API and storage <span class="req">req-4, req-5, req-13</span></td><td><code>npx vitest run tests/api.test.ts</code></td></tr><tr><td>7. Timeline page <span class="req">req-8, req-9, req-10</span></td><td><code>npx vitest run tests/timeline-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></td></tr><tr><td>8. Import from the page <span class="req">req-11</span></td><td><code>npx vitest run tests/import.test.tsx</code> and <code>/devspec-verify roadline-v1</code></td></tr><tr><td>9. Target detail page <span class="req">req-12</span></td><td><code>npx vitest run tests/target-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></td></tr><tr><td>10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></td><td><code>npx vitest run tests/fiscal.test.ts tests/next-actions.test.ts tests/suggest.test.ts</code></td></tr><tr><td>11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></td><td><code>npx vitest run tests/parse-axc.test.ts tests/parse-axc-v21.test.ts tests/parse-csv.test.ts</code></td></tr><tr><td>12. API: mapping round trip <span class="req">req-15, req-19</span></td><td><code>npx vitest run tests/api.test.ts</code></td></tr><tr><td>13. Status words and grouped legend <span class="req">req-17</span></td><td><code>npx vitest run tests/timeline-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></td></tr><tr><td>14. Mapping dialog and import notes <span class="req">req-18, req-19</span></td><td><code>npx vitest run tests/import.test.tsx</code> and <code>/devspec-verify roadline-v1</code></td></tr><tr><td>15. Next-year UI <span class="req">req-16, req-20</span></td><td><code>npx vitest run tests/timeline-page.test.tsx tests/target-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></td></tr><tr><td>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></td><td><code>/devspec-verify roadline-v1</code> and MANUAL: BA approves screenshot</td></tr></table><details><summary>Full tasks.md</summary><h2>Tasks: roadline-v1</h2>
+<p>No component library exists (greenfield) — UI subtasks build minimal components with plain CSS and the <code>ui.md</code> tokens.</p>
+<h3>1. Project scaffold <span class="req">req-13</span></h3>
+<ul>
+<li class="task">☑ 1.1 [backend] Create <code>package.json</code> (npm) with deps <code>express</code>, <code>multer</code>, <code>xlsx</code>, <code>react</code>, <code>react-dom</code>, <code>react-router-dom</code>; dev deps <code>typescript</code>, <code>vite</code>, <code>@vitejs/plugin-react</code>, <code>vitest</code>, <code>supertest</code>, <code>@testing-library/react</code>, <code>jsdom</code>, <code>tsx</code>, <code>eslint</code>, <code>typescript-eslint</code>, <code>prettier</code>. Scripts: <code>dev</code>, <code>build</code> (vite build → <code>dist/client</code>, tsc → <code>dist/server</code>), <code>start</code> (<code>node dist/server/index.js</code>), <code>test</code> (<code>vitest run</code>), <code>lint</code></li>
+<li class="task">☑ 1.2 [backend] <code>tsconfig.json</code> (strict) + <code>tsconfig.server.json</code>, <code>vite.config.ts</code> (proxy <code>/api</code> → 3000 in dev), <code>vitest.config.ts</code>, <code>.prettierrc</code>, <code>eslint.config.js</code></li>
+<li class="task">☑ 1.3 [backend] <code>.gitignore</code>: <code>node_modules/</code>, <code>dist/</code>, <code>data/</code></li>
+<li class="task">☑ 1.4 [test] Copy the workbook to <code>tests/fixtures/axc-fy2026-27.xlsx</code> (source: <code>C:\Users\hung.lay\Downloads\[AXC] AXC_Team_Objectives_ActionPlan_FY2026-2027.xlsx</code>; fallback per Impact Area)</li>
+</ul>
+<p>Verify: <code>npm install &amp;&amp; npm run lint &amp;&amp; npx tsc --noEmit</code></p>
+<h3>2. Model and fiscal calendar <span class="req">req-6, req-8</span></h3>
+<ul>
+<li class="task">☑ 2.1 [service] <code>src/shared/model.ts</code> — types <code>Status</code>, <code>Quarter</code>, <code>Due</code>, <code>Action</code>, <code>Target</code>, <code>Plan</code>, <code>Problem</code>, <code>ParseResult</code> per design.md</li>
+<li class="task">☑ 2.2 [service] <code>src/shared/status.ts</code> — <code>parseStatus(text)</code> (case-insensitive, blank → <code>not_started</code>), <code>STATUS_LABEL</code>, <code>STATUS_ORDER</code></li>
+<li class="task">☑ 2.3 [service] <code>src/shared/fiscal.ts</code> — <code>monthColumns(plan)</code>, <code>quarterColumns(plan)</code>, <code>placeMonth(action)</code>, <code>placeQuarter(action)</code>, <code>currentPeriod(plan, today)</code></li>
+<li class="task">☑ 2.4 [test] <code>tests/fiscal.test.ts</code> — 12 columns Sep 2026…Aug 2027 with Q labels; Feb 2027 → month col 6 / Q2; ongoing → none; 28 Sep 2026 → Sep/Q1; 1 Oct 2027 → null</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/fiscal.test.ts</code></p>
+<h3>3. AXC workbook parser <span class="req">req-1, req-2</span></h3>
+<ul>
+<li class="task">☑ 3.1 [backend] <code>src/server/read-grid.ts</code> — <code>readGrid(buffer, fileName): Record&lt;string, Cell[][]&gt;</code> via SheetJS (<code>header: 1, raw: true, defval: null</code>)</li>
+<li class="task">☑ 3.2 [service] <code>src/shared/parse-axc.ts</code> — <code>parseAxcWorkbook(grid, fileName, importedAt): ParseResult</code>: target sheets by A1 <code>^(T\d+)\s*-\s*(.+)$</code>; header weight/owner/status; block headings by label; action table by header aliases; section rows; value parsing (quarter, due, status); list blocks, risks, change history; Executive Summary period, version, title</li>
+<li class="task">☑ 3.3 [service] Problems collected with <code>{ sheet, row, message }</code>; any problem → <code>{ ok: false }</code>; version &gt; "2.0" → warning</li>
+<li class="task">☑ 3.4 [test] <code>tests/parse-axc.test.ts</code> — fixture: 4 targets, 26/21/18/10 actions, fiscal {2026, 9}, version "2.0"; T1 #1 fields; T4 section "Actions"; T3 #9 ongoing monthly; T2 7 must-achieve + 3 depends-on; T4 2 risks</li>
+<li class="task">☑ 3.5 [test] Same file, grid-mutation cases: remove T2 header row → problem "action table not found" on "T2 Adoption"; Due "Q5 2027" → problem with sheet + row; version "3.0" → ok with warning</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/parse-axc.test.ts</code></p>
+<h3>4. Flat CSV parser <span class="req">req-3</span></h3>
+<ul>
+<li class="task">☑ 4.1 [service] <code>src/shared/parse-csv.ts</code> — <code>parseFlatCsv(grid, fileName, importedAt): ParseResult</code>; required columns per design.md; target fields from first row per target; fiscal start from earliest month due</li>
+<li class="task">☑ 4.2 [test] <code>tests/parse-csv.test.ts</code> — 3-row T1 CSV → 1 target, 3 actions, fiscal start Sep; missing <code>due</code> column → problem naming it</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/parse-csv.test.ts</code></p>
+<h3>5. Next-action ranking <span class="req">req-7</span></h3>
+<ul>
+<li class="task">☑ 5.1 [service] <code>src/shared/next-actions.ts</code> — <code>nextActions(plan, today, { limit, targetId? })</code> with <code>nextDate</code> rules and sort order from design.md; returns <code>{ action, nextDate, overdue }[]</code></li>
+<li class="task">☑ 5.2 [service] <code>src/shared/progress.ts</code> — <code>progress(target)</code> → <code>{ done, total }</code></li>
+<li class="task">☑ 5.3 [test] <code>tests/next-actions.test.ts</code> — fixture, 28 Sep 2026, limit 5 → T3#9, T1#1, T1#2, T1#3, T1#4; overdue first, done excluded; targetId T2 limit 3 → only T2, ≤3</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/next-actions.test.ts</code></p>
+<h3>6. Server API and storage <span class="req">req-4, req-5, req-13</span></h3>
+<ul>
+<li class="task">☑ 6.1 [backend] <code>src/server/plan-store.ts</code> — <code>PlanStore(dataDir)</code>: <code>load(): Plan | null</code>, <code>save(plan, buffer, fileName)</code> (copy current → <code>plan.prev.json</code>, write <code>plan.tmp.json</code>, rename → <code>plan.json</code>, keep <code>uploads/&lt;ISO&gt;-&lt;name&gt;</code>); serialize saves with a promise queue</li>
+<li class="task">☑ 6.2 [backend] <code>src/server/app.ts</code> — <code>createApp({ dataDir })</code>: <code>GET /api/plan</code> (200 | 404 <code>no_plan</code>); <code>POST /api/plan</code> via multer memory storage, 5 MB limit, <code>.xlsx</code>/<code>.csv</code> only → <code>readGrid</code> → <code>parseAxcWorkbook</code> (xlsx) or <code>parseFlatCsv</code> (csv) → 200 <code>{ plan, warnings }</code> | 400 <code>{ error: 'invalid_plan', problems }</code> | 413 <code>file_too_large</code> | 415 <code>unsupported_type</code></li>
+<li class="task">☑ 6.3 [backend] Static hosting of <code>dist/client</code> with <code>index.html</code> fallback for non-<code>/api</code> GETs</li>
+<li class="task">☑ 6.4 [backend] <code>src/server/index.ts</code> — read <code>PORT</code> (3000) and <code>DATA_DIR</code> (<code>./data</code>), start the app</li>
+<li class="task">☑ 6.5 [test] <code>tests/api.test.ts</code> (supertest, temp data dir) — 404 before import; valid upload → 200 + <code>plan.json</code>; second upload → <code>plan.prev.json</code> exists; invalid upload → 400 and GET returns previous; <code>.pdf</code> → 415; 6 MB → 413; <code>GET /target/T1</code> → HTML</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/api.test.ts</code></p>
+<h3>7. Timeline page <span class="req">req-8, req-9, req-10</span></h3>
+<ul>
+<li class="task">☑ 7.1 [frontend] <code>src/client/styles.css</code> — <code>:root</code> tokens from <code>ui.md</code> (surface, <code>--now</code>, <code>--s-ns|ok|risk|behind|done</code>), base layout</li>
+<li class="task">☑ 7.2 [frontend] <code>src/client/main.tsx</code> + <code>app.tsx</code> — React Router routes <code>/</code> and <code>/target/:id</code>; <code>use-plan.ts</code> hook (fetch <code>/api/plan</code>, <code>replace(plan)</code>); <code>use-today.ts</code> (local date, <code>?today=</code> override)</li>
+<li class="task">☑ 7.3 [frontend] <code>components/app-header.tsx</code> — title, period, source file + import time, Month|Quarter toggle (Month default), Import button slot</li>
+<li class="task">☑ 7.4 [frontend] <code>components/status-dot.tsx</code>, <code>components/status-legend.tsx</code> — five statuses + "colored cell edge" note</li>
+<li class="task">☑ 7.5 [frontend] <code>components/next-actions.tsx</code> — list from <code>nextActions(plan, today, { limit })</code>; row = dot · target id · action text · status label · due text (<code>↻ due 30 Sep</code> / <code>due Nov</code>); links to <code>/target/:id</code></li>
+<li class="task">☑ 7.6 [frontend] <code>components/timeline-grid.tsx</code> — target column (dot, name, status · weight · owner, done/total, <code>↻ n ongoing</code>, "View detail →") + period cells (count, topic list with dots, <code>—</code> when empty, <code>now</code> highlight, red/amber left edge); every cell links to <code>/target/:id</code></li>
+<li class="task">☑ 7.7 [frontend] <code>pages/timeline-page.tsx</code> — header, next actions, legend, grid</li>
+<li class="task">☑ 7.8 [test] <code>tests/timeline-page.test.tsx</code> (testing-library, fixture plan, today 28 Sep 2026) — Month active, 12 columns, Sep has "now", T1/Nov lists 7 topics; Quarter → 4 columns, T1/Q1 7 topics; first next action is T3 monthly report; Behind topic → cell has red edge class</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/timeline-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></p>
+<h3>8. Import from the page <span class="req">req-11</span></h3>
+<ul>
+<li class="task">☑ 8.1 [frontend] <code>components/import-button.tsx</code> — hidden file input (<code>.xlsx,.csv</code>), posts <code>FormData</code> to <code>/api/plan</code>, calls <code>replace(plan)</code> on 200</li>
+<li class="task">☑ 8.2 [frontend] <code>components/import-states.tsx</code> — empty (drop zone + Choose file, "shown to everyone with the link"), loading (file name + progress bar, current plan stays visible), error (problem list, "Nothing replaced — still showing the import from &lt;date&gt;", Choose another file)</li>
+<li class="task">☑ 8.3 [test] <code>tests/import.test.tsx</code> (mocked fetch) — 404 → empty state; success → header shows new file name; 400 → error panel with problems and previous plan still rendered</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/import.test.tsx</code> and <code>/devspec-verify roadline-v1</code></p>
+<h3>9. Target detail page <span class="req">req-12</span></h3>
+<ul>
+<li class="task">☑ 9.1 [frontend] <code>components/target-header.tsx</code> — dot + <code>&lt;id&gt; · &lt;name&gt;</code>, Weight / Owner / Status (colored) / Progress with bar, objective</li>
+<li class="task">☑ 9.2 [frontend] <code>components/action-plan.tsx</code> — legend badges; one block per quarter (<code>Q&lt;n&gt; &lt;range&gt; · &lt;n&gt; actions</code>, <code>now</code> tag); table <code># | Action (+ → deliverable) | Success measure | Owner | Due | Status badge</code>; risk/behind row edge; ongoing actions under their quarter-less block "Ongoing"</li>
+<li class="task">☑ 9.3 [frontend] <code>components/target-sections.tsx</code> — <code>&lt;details&gt;</code>: What this must achieve (open), How we will do it, Depends on, Risks, Change history ("No changes recorded")</li>
+<li class="task">☑ 9.4 [frontend] <code>pages/target-page.tsx</code> — back link, header, next 3 (<code>nextActions</code> with <code>targetId</code>), action plan, sections; "Target not found" state</li>
+<li class="task">☑ 9.5 [test] <code>tests/target-page.test.tsx</code> — <code>/target/T1</code>: name, 34%, Developer, 0 / 26, 3 next items, Q1 has now, 5 sections; <code>/target/T9</code> → "Target not found"</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/target-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></p>
+<h3>10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span></h3>
+<ul>
+<li class="task">☑ 10.1 [service] <code>src/shared/model.ts</code> — add <code>statusWord: string</code> to <code>Action</code> and <code>Target</code>; <code>quarter: Quarter | 'ongoing' | 'next_year'</code>; <code>Due</code> adds <code>{ kind: 'next_year' }</code>; new <code>MappingField</code>, <code>QuarterMeaning</code>, <code>DueMeaning</code>, <code>Mappings</code>, <code>UnknownValue</code>, <code>AppliedMapping</code>; <code>ParseResult</code> adds <code>applied</code> on ok and the <code>{ ok: false; needsMapping }</code> branch (per design.md revision 2)</li>
+<li class="task">☑ 10.2 [service] <code>src/shared/suggest.ts</code> (new) — <code>normWord(word)</code>, <code>suggestStatus</code>, <code>suggestQuarter</code>, <code>suggestDue</code> with the keyword lists in design.md</li>
+<li class="task">☑ 10.3 [service] <code>src/shared/fiscal.ts</code> — <code>hasNextYear(plan)</code>, <code>nextFiscalLabel(plan)</code>; <code>monthColumns</code> / <code>quarterColumns</code> take <code>{ nextYear }</code> and append a <code>Next year</code> column; <code>placeMonth</code> → 12 and <code>placeQuarter</code> → 4 for next-year actions</li>
+<li class="task">☑ 10.4 [service] <code>src/shared/progress.ts</code> — <code>progress(target)</code> → <code>{ done, total, nextYear }</code>, this year only</li>
+<li class="task">☑ 10.5 [service] <code>src/shared/next-actions.ts</code> — skip next-year actions; overdue <b>or</b> tone <code>behind</code> first, then the existing order</li>
+<li class="task">☑ 10.6 [test] Update <code>tests/fiscal.test.ts</code>, <code>tests/next-actions.test.ts</code> (Behind-first + next-year excluded; 28 Sep v2.0 order unchanged), add <code>tests/suggest.test.ts</code></li>
+</ul>
+<p>Verify: <code>npx vitest run tests/fiscal.test.ts tests/next-actions.test.ts tests/suggest.test.ts</code></p>
+<h3>11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></h3>
+<ul>
+<li class="task">☑ 11.1 [backend] <code>src/server/read-grid.ts</code> — return <code>{ grid, dropdowns }</code>; read with SheetJS <code>bookFiles: true</code>, map sheet name → XML via <code>xl/workbook.xml</code> + <code>xl/_rels/workbook.xml.rels</code> (not <code>Directory.sheets</code> order), collect <code>&lt;dataValidation type="list"&gt;</code> with inline <code>formula1</code>; CSV → <code>dropdowns = {}</code></li>
+<li class="task">☑ 11.2 [service] <code>src/shared/parse-axc.ts</code> — <code>parseAxcWorkbook(grid, fileName, importedAt, { mappings, dropdowns })</code>: keep the file word in <code>statusWord</code>; resolve words through built-ins then <code>mappings</code>; collect unknown status / quarter / due words (rows + status dropdown lists) with counts, first 10 locations, <code>fromDropdown</code>, suggestion; quarter <code>next_year</code> forces <code>due = { kind: 'next_year' }</code> and skips its due word; due <code>quarter_end</code> → last month of the quarter; order of checks per design.md; return <code>applied</code></li>
+<li class="task">☑ 11.3 [service] <code>src/shared/parse-csv.ts</code> — same word resolution, unknown collection and <code>applied</code> for <code>status</code>, <code>target_status</code>, <code>quarter</code>, <code>due</code></li>
+<li class="task">☑ 11.4 [test] Copy <code>C:\Users\hung.lay\Downloads\[AXC] AXC_Team_Objectives_ActionPlan_FY2026-2027 (1).xlsx</code> to <code>tests/fixtures/axc-fy2026-27-v2.1.xlsx</code>; <code>tests/parse-axc-v21.test.ts</code> — no mappings → needsMapping (In progress ×7, Blocked ×0 from dropdown, FY27-28 ×14, no due asked); with mappings → ok, T1 12 + 7 next year, T1 #4 <code>on_track</code>/"In progress", 52 this-year actions, <code>applied</code> has 3 entries; TBD + <code>quarter_end</code> on a Q3 row → May; layout break still gives problems</li>
+<li class="task">☑ 11.5 [test] Update <code>tests/parse-axc.test.ts</code> (due "Nov 2028" → outside-fiscal-year problem; "Blocked" → needsMapping), <code>tests/parse-csv.test.ts</code>, <code>tests/helpers.ts</code> (<code>readGrid(...).grid</code>)</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/parse-axc.test.ts tests/parse-axc-v21.test.ts tests/parse-csv.test.ts</code></p>
+<h3>12. API: mapping round trip <span class="req">req-15, req-19</span></h3>
+<ul>
+<li class="task">☑ 12.1 [backend] <code>src/server/mapping-store.ts</code> (new) — <code>MappingStore(dataDir)</code>: <code>load(): Mappings</code>, <code>merge(partial, version?)</code> atomic write of <code>data/mappings.json</code> (temp + rename), serialized like <code>PlanStore</code></li>
+<li class="task">☑ 12.2 [backend] <code>src/server/app.ts</code> <code>POST /api/plan</code> — read optional multipart <code>mapping</code> (JSON) → 400 <code>invalid_mapping</code> if bad; parse with saved ∪ submitted mappings; <code>needsMapping</code> → 422 <code>{ error: 'needs_mapping', unknown }</code> (nothing saved); success → <code>PlanStore.save</code>, <code>MappingStore.merge(submitted, version)</code>, respond <code>{ plan, warnings, applied }</code>; version warning only when newer than tested and not in <code>seenVersions</code></li>
+<li class="task">☑ 12.3 [test] <code>tests/api.test.ts</code> — v2.1 first upload → 422, no <code>plan.json</code> change, no <code>mappings.json</code>; retry with mapping → 200 + <code>mappings.json</code>; third upload without mapping → 200 with <code>applied</code>; bad JSON / unknown meaning → 400 <code>invalid_mapping</code>; version warning on first v2.1 import only</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/api.test.ts</code></p>
+<h3>13. Status words and grouped legend <span class="req">req-17</span></h3>
+<ul>
+<li class="task">☑ 13.1 [frontend] <code>src/client/components/status-dot.tsx</code> — <code>StatusDot</code>, <code>StatusLabel</code>, <code>StatusBadge</code> take <code>{ status, word }</code>; text = word (empty → "Not started"), color = tone class <code>bg-&lt;tone&gt;</code> / <code>fg-&lt;tone&gt;</code></li>
+<li class="task">☑ 13.2 [frontend] <code>src/client/components/status-legend.tsx</code> — <code>StatusLegend({ plan })</code> groups the plan's words by tone: "On track (In progress)"; note adds "┆ Next year = not in this year's progress" when the plan has next-year actions</li>
+<li class="task">☑ 13.3 [frontend] Pass <code>statusWord</code> everywhere status is shown: <code>next-actions.tsx</code>, <code>timeline-grid.tsx</code>, <code>target-header.tsx</code>, <code>action-plan.tsx</code> (grouped badge legend), <code>pages/target-page.tsx</code></li>
+<li class="task">☑ 13.4 [test] <code>tests/timeline-page.test.tsx</code> — mapped v2.1 plan: legend "On track (In progress)", T1 #4 dot has <code>bg-on_track</code> and title "In progress"</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/timeline-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></p>
+<h3>14. Mapping dialog and import notes <span class="req">req-18, req-19</span></h3>
+<ul>
+<li class="task">☑ 14.1 [frontend] <code>src/client/api.ts</code> — <code>uploadPlan(file, mapping?)</code> sends <code>mapping</code> as a multipart JSON field; 422 → <code>{ ok: false, needsMapping }</code>; 200 → <code>{ ok: true, plan, warnings, applied }</code></li>
+<li class="task">☑ 14.2 [frontend] <code>src/client/components/import-mapping-dialog.tsx</code> (new) — modal per <code>mockups/import-mapping.html</code>: groups Status / Quarter / Due, rows = word · found (count + locations, or "listed in the file's Status dropdown") · <code>&lt;select&gt;</code> with suggestion + "suggested" · status preview (<code>StatusDot</code> + word); footer note, <code>.btn</code> Cancel, <code>.btn.primary</code> "Apply &amp; import"; applying state disables both and shows "Importing…"</li>
+<li class="task">☑ 14.3 [frontend] <code>src/client/components/import-notes.tsx</code> (new) — dismissable info line "Applied saved mappings: …" and amber warning line for warnings (template version), per <code>mockups/timeline.html</code></li>
+<li class="task">☑ 14.4 [frontend] <code>src/client/pages/timeline-page.tsx</code> — import flow: <code>needsMapping</code> → open dialog with the file kept in state; Apply → <code>uploadPlan(file, mapping)</code>; Cancel → note "Import cancelled — &lt;file&gt; was not imported."; success → <code>replace(plan)</code> + notes</li>
+<li class="task">☑ 14.5 [test] <code>tests/import.test.tsx</code> — 422 → dialog lists 3 words with suggestions; Apply posts the same file with <code>mapping</code> and renders the plan + applied note; Cancel shows the cancelled note and posts nothing more</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/import.test.tsx</code> and <code>/devspec-verify roadline-v1</code></p>
+<h3>15. Next-year UI <span class="req">req-16, req-20</span></h3>
+<ul>
+<li class="task">☑ 15.1 [frontend] <code>src/client/styles.css</code> — token <code>--next: #f3f4f8</code>; <code>.hd.ny</code>, <code>.cell.ny</code> (background <code>--next</code>, 2px dashed left border); <code>.q.ny</code> block and <code>.ny-tag</code></li>
+<li class="task">☑ 15.2 [frontend] <code>src/client/components/timeline-grid.tsx</code> — append the Next-year column (<code>hasNextYear</code>, <code>nextFiscalLabel</code>) in both views; target cell <code>&lt;done&gt; / &lt;total&gt; done · n next year</code></li>
+<li class="task">☑ 15.3 [frontend] <code>src/client/components/next-actions.tsx</code> — subtitle adds "· n moved to next year"</li>
+<li class="task">☑ 15.4 [frontend] <code>src/client/components/target-header.tsx</code> — progress this year + sub-line "this year · n more next year"; <code>src/client/components/action-plan.tsx</code> — "Next year · FY27-28 · n actions" block after Q4 with tag and hint</li>
+<li class="task">☑ 15.5 [test] <code>tests/timeline-page.test.tsx</code> + <code>tests/target-page.test.tsx</code> — mapped v2.1 plan: 13 columns, Next-year topics 7/5/2/0, T1 "2 / 12 done · 7 next year"; T1 page Next-year block with 7 rows; v2.0 plan has no Next-year column or block</li>
+</ul>
+<p>Verify: <code>npx vitest run tests/timeline-page.test.tsx tests/target-page.test.tsx</code> and <code>/devspec-verify roadline-v1</code></p>
+<h3>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></h3>
+<ul>
+<li class="task">☑ 16.1 [test] <code>npm run build &amp;&amp; npm start</code>; import the v2.0 fixture (no dialog), then the v2.1 fixture (dialog → Apply), then v2.1 again (no dialog, info note only); open <code>/?today=2026-09-29</code> and <code>/target/T1?today=2026-09-29</code>; compare against <code>mockups/timeline.html</code>, <code>mockups/target.html</code>, <code>mockups/import-mapping.html</code>; screenshots to <code>verify/</code></li>
+<li class="task">☐ 16.2 MANUAL: BA approves screenshots of the timeline, T1 detail and mapping dialog</li>
+</ul>
+<p>Verify: <code>/devspec-verify roadline-v1</code> and MANUAL: BA approves screenshot</p></details></section><section id="coverage"><h2>Coverage</h2><div class="ok">✓ Every requirement is covered — 20 requirements, all mapped to a task section.</div><table><tr><th>Req</th><th>Requirement</th><th>Task sections</th></tr><tr><td><span class="req">req-1</span></td><td>parse AXC workbook</td><td>3. AXC workbook parser <span class="req">req-1, req-2</span><br>11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></td></tr><tr><td><span class="req">req-2</span></td><td>reject invalid files</td><td>3. AXC workbook parser <span class="req">req-1, req-2</span><br>11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></td></tr><tr><td><span class="req">req-3</span></td><td>parse flat CSV</td><td>4. Flat CSV parser <span class="req">req-3</span><br>11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></td></tr><tr><td><span class="req">req-4</span></td><td>import and store the plan</td><td>6. Server API and storage <span class="req">req-4, req-5, req-13</span></td></tr><tr><td><span class="req">req-5</span></td><td>serve the current plan</td><td>6. Server API and storage <span class="req">req-4, req-5, req-13</span></td></tr><tr><td><span class="req">req-6</span></td><td>fiscal calendar and placement</td><td>2. Model and fiscal calendar <span class="req">req-6, req-8</span></td></tr><tr><td><span class="req">req-7</span></td><td>rank next actions</td><td>5. Next-action ranking <span class="req">req-7</span></td></tr><tr><td><span class="req">req-8</span></td><td>status colors</td><td>2. Model and fiscal calendar <span class="req">req-6, req-8</span><br>7. Timeline page <span class="req">req-8, req-9, req-10</span></td></tr><tr><td><span class="req">req-9</span></td><td>timeline page</td><td>7. Timeline page <span class="req">req-8, req-9, req-10</span><br>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></td></tr><tr><td><span class="req">req-10</span></td><td>next actions panel</td><td>7. Timeline page <span class="req">req-8, req-9, req-10</span></td></tr><tr><td><span class="req">req-11</span></td><td>import from the page</td><td>8. Import from the page <span class="req">req-11</span></td></tr><tr><td><span class="req">req-12</span></td><td>target detail page</td><td>9. Target detail page <span class="req">req-12</span><br>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></td></tr><tr><td><span class="req">req-13</span></td><td>single-service hosting</td><td>1. Project scaffold <span class="req">req-13</span><br>6. Server API and storage <span class="req">req-4, req-5, req-13</span><br>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></td></tr><tr><td><span class="req">req-14</span></td><td>detect unknown words and suggest meanings</td><td>11. Parser: unknown words, mappings, dropdown lists <span class="req">req-1, req-2, req-3, req-14</span></td></tr><tr><td><span class="req">req-15</span></td><td>mapping round trip through the API</td><td>12. API: mapping round trip <span class="req">req-15, req-19</span></td></tr><tr><td><span class="req">req-16</span></td><td>next-year actions</td><td>10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span><br>15. Next-year UI <span class="req">req-16, req-20</span></td></tr><tr><td><span class="req">req-17</span></td><td>status words and tones</td><td>10. Model: status words, next year, mapping types <span class="req">req-16, req-17</span><br>13. Status words and grouped legend <span class="req">req-17</span></td></tr><tr><td><span class="req">req-18</span></td><td>mapping dialog</td><td>14. Mapping dialog and import notes <span class="req">req-18, req-19</span><br>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></td></tr><tr><td><span class="req">req-19</span></td><td>import notes</td><td>12. API: mapping round trip <span class="req">req-15, req-19</span><br>14. Mapping dialog and import notes <span class="req">req-18, req-19</span></td></tr><tr><td><span class="req">req-20</span></td><td>next-year UI</td><td>15. Next-year UI <span class="req">req-16, req-20</span><br>16. End-to-end check and sign-off <span class="req">req-9, req-12, req-13, req-18, req-20</span></td></tr></table></section><section id="board"><h2>Board</h2><pre>changes:
+  roadline-v1:
+    title: AXC plan viewer — import xlsx/csv (adaptive mapping), month/quarter timeline + next year, target detail, next actions
+    tasks_md: changes/roadline-v1/tasks.md
+    depends_on: []
+    skills: []
+    status: blocked
+    owner: &quot;worker-claude-1&quot;
+    notes: &quot;waiting on MANUAL 16.2 (BA approves screenshots) — see devspec/report/blockers.md; sections 1-15 + 16.1 done&quot;
+</pre></section></main></body></html>
