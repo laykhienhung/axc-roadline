@@ -1,12 +1,22 @@
 import { Pool } from 'pg';
 import type { Pool as PgPool } from 'pg';
+import { SUPABASE_CA } from './supabase-ca.js';
 
 /** Create the small, process-wide pool used by the PostgreSQL storage implementation. */
-export function createPool(url: string): PgPool {
+export function createPool(url: string, serverless = false): PgPool {
+  const connection = new URL(url);
+  // URL SSL parameters can override node-postgres's verified TLS settings.
+  for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'])
+    connection.searchParams.delete(key);
+  const supabase =
+    connection.hostname.endsWith('.pooler.supabase.com') ||
+    /^db\.[^.]+\.supabase\.co$/.test(connection.hostname);
   return new Pool({
-    connectionString: url,
-    max: 5,
+    connectionString: connection.toString(),
+    max: serverless ? 1 : 5,
     connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 10000,
+    ssl: { rejectUnauthorized: true, ...(supabase ? { ca: SUPABASE_CA } : {}) },
     application_name: 'roadline',
   });
 }
