@@ -1,4 +1,5 @@
-import type { Target } from '../../shared/model';
+import type { Plan, Target } from '../../shared/model';
+import { nounFor } from '../../shared/noun';
 
 /** "T1 - the shared tooling…" → chip "T1" + text; no prefix → no chip. */
 export function splitDependency(text: string): { who: string | null; text: string } {
@@ -26,9 +27,12 @@ const WarnIcon = () => (
 
 const None = ({ text }: { text: string }) => <p className="none">{text}</p>;
 
-export function TargetSections({ target }: { target: Target }) {
+export function TargetSections({ plan, target }: { plan: Plan; target: Target }) {
+  const noun = nounFor(plan);
+  // "Objective details" is the 4.2 details card, so the side column gets its own name there.
+  const label = noun.one === 'target' ? 'Target details' : `More on this ${noun.one}`;
   return (
-    <div className="side" aria-label="Target details">
+    <div className="side" aria-label={label}>
       <section className="card" aria-label="What this must achieve">
         <h3>What this must achieve</h3>
         {target.mustAchieve.length ? (

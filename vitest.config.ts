@@ -7,5 +7,7 @@ export default defineConfig({
     globals: true,
     include: ['tests/**/*.test.{ts,tsx}'],
     environment: 'node',
+    // Auth tests hash passwords with scrypt (deliberately slow); the full parallel run needs headroom.
+    testTimeout: 20_000,
   },
 });

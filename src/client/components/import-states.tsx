@@ -51,6 +51,23 @@ const FileIcon = () => (
   </svg>
 );
 
+const PersonIcon = () => (
+  <svg
+    width="30"
+    height="30"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+  </svg>
+);
+
 /** Nothing imported yet: drop zone + file picker + what a file must look like. */
 export function EmptyState({ onFile, busy }: { onFile: (f: File) => void; busy: boolean }) {
   const [over, setOver] = useState(false);
@@ -118,6 +135,28 @@ export function EmptyState({ onFile, busy }: { onFile: (f: File) => void; busy: 
         An import replaces the plan for everyone. New words in the file (like “In progress”) are
         asked about once, then remembered.
       </p>
+    </section>
+  );
+}
+
+/** Read-only empty state: viewers cannot select or drop an import. */
+export function ViewerEmptyState() {
+  return (
+    <section className="empty-state" aria-label="No plan loaded">
+      <div>
+        <h2>No plan loaded yet</h2>
+        <p className="intro">
+          An editor hasn&apos;t imported the team&apos;s objectives &amp; action-plan workbook yet.
+          Once they do, the timeline shows up here for everyone.
+        </p>
+      </div>
+      <div className="drop static">
+        <span className="ico">
+          <PersonIcon />
+        </span>
+        <b>Ask an editor to import the workbook</b>
+        <small>Only editors can import or replace the plan.</small>
+      </div>
     </section>
   );
 }

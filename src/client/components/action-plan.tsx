@@ -2,18 +2,32 @@ import { compareYmd, isNextYear, nextFiscalLabel, quarterColumns } from '../../s
 import type { Action, Plan, Quarter, Target, Ymd } from '../../shared/model';
 import { nextDate } from '../../shared/next-actions';
 import { dueLong, dueShort } from '../format';
+import { Percent } from './percent';
 import { StatusBadge } from './status-dot';
 
+/** "📎 a · b · +n": the first two reference names, then how many more. */
+export function refLine(refs: string[]): string {
+  const more = refs.length > 2 ? ` · +${refs.length - 2}` : '';
+  return `📎 ${refs.slice(0, 2).join(' · ')}${more}`;
+}
+
 function ActionTable({ plan, actions, today }: { plan: Plan; actions: Action[]; today: Ymd }) {
+  const partners = plan.targets.some((t) => t.actions.some((a) => a.partners));
+  const pct = plan.progressBy === 'percent';
   return (
     <table>
       <thead>
         <tr>
           <th>#</th>
           <th>Action</th>
-          <th style={{ width: 230 }}>Success measure</th>
+          {partners ? (
+            <th style={{ width: 170 }}>Partners</th>
+          ) : (
+            <th style={{ width: 230 }}>Success measure</th>
+          )}
           <th style={{ width: 112 }}>Owner</th>
           <th style={{ width: 96 }}>Due</th>
+          {pct && <th style={{ width: 96 }}>%</th>}
           <th style={{ width: 120 }}>Status</th>
         </tr>
       </thead>
@@ -27,14 +41,26 @@ function ActionTable({ plan, actions, today }: { plan: Plan; actions: Action[]; 
             <tr key={a.no} className={a.status === 'done' ? 'done' : undefined}>
               <td className="n">{a.no}</td>
               <td>
-                <div className="act">{a.action}</div>
+                <div className="act">
+                  {a.detailId && <span className="dchip">{a.detailId}</span>}
+                  {a.action}
+                </div>
                 {a.deliverable !== a.action && <div className="sub">→ {a.deliverable}</div>}
+                {a.references && a.references.length > 0 && (
+                  <div className="ref">{refLine(a.references)}</div>
+                )}
+                {a.note && <div className="note">{a.note}</div>}
               </td>
-              <td className="measure">{a.measure ?? '—'}</td>
+              <td className="measure">{partners ? a.partners || '—' : (a.measure ?? '—')}</td>
               <td className="own">{a.owner}</td>
               <td className={`when${overdue ? ' late' : ''}`}>
                 {overdue ? dueShort({ action: a, overdue }) : dueLong(a)}
               </td>
+              {pct && (
+                <td>
+                  <Percent value={a.percent ?? null} />
+                </td>
+              )}
               <td>
                 <StatusBadge status={a.status} word={a.statusWord} />
               </td>
@@ -61,7 +87,9 @@ export function ActionPlan({
 }) {
   const ongoing = target.actions.filter((a) => a.quarter === 'ongoing');
   const nextYear = target.actions.filter(isNextYear);
-  const sections = [...new Set(target.actions.map((a) => a.section).filter(Boolean))];
+  const sections = target.details?.length
+    ? target.details.map((d) => `${d.id} ${d.title}`)
+    : [...new Set(target.actions.map((a) => a.section).filter(Boolean))];
   return (
     <section className="card ap" aria-label="Action plan">
       <div className="ap-h">

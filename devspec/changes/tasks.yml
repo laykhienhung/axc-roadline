@@ -10,25 +10,37 @@ changes:
     notes: "done 2026-09-29: 16/16 sections; BA approved screenshots (16.2)"
   roadline-v2:
     title: UI redesign — new look (system fonts), summary tiles, Next actions Board/Tasks, full-text adaptive timeline, target page, import screens
-    tasks_md: changes/roadline-v2/tasks.md
+    tasks_md: archive/roadline-v2/tasks.md
+    archived: archive/roadline-v2
     depends_on: []
     skills: []
-    status: blocked
+    status: done
     owner: "worker-claude-1"
-    notes: "blocked at 10.2 MANUAL: BA approves screenshots (verify/*.jpg) — see devspec/report/blockers.md"
+    notes: "done 2026-10-01: 10/10 sections; BA approved screenshots (10.2) in chat 2026-10-01"
   roadline-db:
     title: PostgreSQL storage — plans (last 10), value mappings, import audit log; migrations, file→DB import, files fallback for tests
-    tasks_md: changes/roadline-db/tasks.md
+    tasks_md: archive/roadline-db/tasks.md
+    archived: archive/roadline-db
     depends_on: []
     skills: []
-    status: pending
-    owner: ""
-    notes: "approved 2026-10-01. Server-only; no overlap with roadline-v2 (client-only). Section 7 is MANUAL: user fixes .env (/postgres), runs db:migrate + db:import-files on postgres.roadline. Worker never writes to that DB; npm test uses FileStorage."
+    status: done
+    owner: "worker-claude-1+codex"
+    notes: "done 2026-10-01: 7/7 sections. Codex implemented 1-6, Claude reviewed (fix: jsonb params as JSON). Section 7 run by Claude on postgres.roadline at the user's instruction."
   roadline-auth:
-    title: Google sign-in (cyberlogitec.com), users & roles (viewer/editor/admin) in DB, server-side sessions, admin page (users + import log), role-aware import
-    tasks_md: changes/roadline-auth/tasks.md
+    title: Local accounts (sign-up/sign-in, any email, active as viewer), roles viewer/editor/admin set by admin, server-side sessions, password change + admin reset to 1111 with forced update, admin page (users + import log), role-aware import
+    tasks_md: archive/roadline-auth/tasks.md
+    archived: archive/roadline-auth
     depends_on: [roadline-db, roadline-v2]
     skills: []
-    status: pending
-    owner: ""
-    notes: "approved 2026-10-01. Needs roadline-db's Storage/db.ts/migrations and roadline-v2's header + import screens. npm test uses FileAuthStore/FileStorage (no DB). Section 11 MANUAL: Google OAuth client, db:migrate on postgres.roadline, BA screenshots."
+    status: done
+    owner: "worker-claude-1+codex"
+    notes: "done 2026-10-01: 11/11 sections; BA approved screenshots (11.2) in chat. Codex 1-7, Claude 8-11."
+  roadline-template-v4:
+    title: Import AXC template 4.2 alongside 2.x — objective sheets, Start-month fiscal year, equal weights, objective details, Partners/%/Reference/Note, average-% progress, objective wording
+    tasks_md: archive/roadline-template-v4/tasks.md
+    archived: archive/roadline-template-v4
+    depends_on: []
+    skills: []
+    status: done
+    owner: "claude+agents"
+    notes: "done 2026-10-01: 9/9 sections; BA approved screenshots (9.1) in chat. Agents v4-core (1-4), v4-page (5), v4-drawer (6); Claude review, docs, verify."

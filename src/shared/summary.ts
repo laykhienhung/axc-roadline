@@ -4,7 +4,10 @@ import { openNow } from './next-actions.js';
 import { progress } from './progress.js';
 
 export interface PlanSummary {
-  /** 0..1, each target's done share weighted by its weight (this year only). */
+  /**
+   * 0..1, each target's done share weighted by its weight (this year only). In percent mode the
+   * share is the target's average action % instead.
+   */
   yearProgress: number;
   done: number;
   total: number;
@@ -21,10 +24,14 @@ export function planSummary(plan: Plan, today: Ymd): PlanSummary {
   let weighted = 0;
   let weights = 0;
   for (const t of plan.targets) {
-    const p = progress(t);
+    const p = progress(t, plan);
     done += p.done;
     total += p.total;
-    if (p.total > 0) {
+    if (p.percent !== undefined) {
+      // Percent mode: every objective counts (0 actions → 0%).
+      weighted += t.weight * (p.percent / 100);
+      weights += t.weight;
+    } else if (p.total > 0) {
       weighted += t.weight * (p.done / p.total);
       weights += t.weight;
     }

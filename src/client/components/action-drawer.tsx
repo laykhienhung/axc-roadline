@@ -7,14 +7,16 @@ import {
 } from 'react';
 import { Link } from 'react-router-dom';
 import { quarterColumns } from '../../shared/fiscal';
-import type { Action, Plan, Ymd } from '../../shared/model';
+import type { Action, Detail, Plan, Ymd } from '../../shared/model';
 import { nextActions } from '../../shared/next-actions';
+import { nounFor } from '../../shared/noun';
 import { dueLong, percent } from '../format';
 import { useLinkSuffix } from '../use-today';
+import { Percent } from './percent';
 import { StatusBadge } from './status-dot';
 import { type ActionRef, isOverdue } from './timeline-tree';
 
-/** How many upcoming actions of the target the drawer lists. */
+/** How many upcoming actions of the target (objective) the drawer lists. */
 const NEXT_LIMIT = 3;
 
 const WIDTH_KEY = 'roadline.drawerWidth';
@@ -99,6 +101,20 @@ function quarterText(plan: Plan, a: Action): string {
   return q ? `${q.label} · ${q.range}` : a.quarter;
 }
 
+/** "Goal / Needs first / JD" of the objective detail an action belongs to (4.2). */
+function DetailSection({ detail }: { detail: Detail }) {
+  return (
+    <div className="drawer-sec">
+      <h3>
+        Objective detail {detail.id} · {detail.title}
+      </h3>
+      {detail.goal && <p className="goal">Goal: {detail.goal}</p>}
+      {detail.needsFirst && <p className="needs">Needs first: {detail.needsFirst}</p>}
+      {detail.jd && <p className="jd">JD: {detail.jd}</p>}
+    </div>
+  );
+}
+
 /** The detail of one action, sliding in from the right like a job-board detail pane. */
 export function ActionDrawer({
   plan,
@@ -133,8 +149,18 @@ export function ActionDrawer({
 
   if (!target || !action) return null;
   const late = isOverdue(plan, action, today);
-  // Same ranking as the target page's "Next for this target": overdue first, then by due date.
+  // Same ranking as the target page's "Next for this …": overdue first, then by due date.
   const next = nextActions(plan, today, { limit: NEXT_LIMIT, targetId: target.id });
+  const noun = nounFor(plan);
+  const detail = action.detailId
+    ? target.details?.find((d) => d.id === action.detailId)
+    : undefined;
+  const byPercent = plan.progressBy === 'percent';
+  const pct = action.percent ?? null;
+  // A 4.2 deliverable repeats the action text; show it only when it says something more.
+  const deliverable =
+    plan.layout === 'objectives' && action.deliverable === action.action ? '' : action.deliverable;
+  const refs = action.references ?? [];
 
   return (
     <aside className="drawer" role="dialog" aria-label="Action detail" style={{ width }}>
@@ -171,7 +197,7 @@ export function ActionDrawer({
             {late && <span className="badge tone-behind">Overdue</span>}
           </div>
           <Link to={`/target/${target.id}${suffix}`} className="btn primary">
-            ▶ Open target {target.id}
+            ▶ Open {noun.one} {target.id}
           </Link>
           <dl className="drawer-facts">
             <dt>Quarter</dt>
@@ -180,21 +206,68 @@ export function ActionDrawer({
             <dd className={late ? 'late' : ''}>{dueLong(action)}</dd>
             <dt>Owner</dt>
             <dd>{action.owner || '—'}</dd>
-            <dt>Section</dt>
-            <dd>{action.section || '—'}</dd>
+            {action.partners && (
+              <>
+                <dt>Partners</dt>
+                <dd>{action.partners}</dd>
+              </>
+            )}
+            {(byPercent || pct !== null) && (
+              <>
+                <dt>Progress</dt>
+                <dd>
+                  {pct === null ? (
+                    <span className="muted">— (counts as 0%)</span>
+                  ) : (
+                    <Percent value={pct} width={80} />
+                  )}
+                </dd>
+              </>
+            )}
+            {action.detailId ? (
+              <>
+                <dt>Detail</dt>
+                <dd>{detail ? `${detail.id} · ${detail.title}` : action.detailId}</dd>
+              </>
+            ) : (
+              <>
+                <dt>Section</dt>
+                <dd>{action.section || '—'}</dd>
+              </>
+            )}
             <dt>Weight</dt>
-            <dd>{percent(target.weight)} of the year</dd>
+            <dd>
+              {percent(target.weight)} of the year
+              {target.weightSource === 'equal' && ' · equal'}
+            </dd>
           </dl>
-          {action.deliverable && (
+          {detail && <DetailSection detail={detail} />}
+          {deliverable && (
             <div className="drawer-sec">
               <h3>Deliverable</h3>
-              <span className="chip">{action.deliverable}</span>
+              <span className="chip">{deliverable}</span>
             </div>
           )}
           {action.measure && (
             <div className="drawer-sec">
               <h3>Success measure</h3>
               <p>{action.measure}</p>
+            </div>
+          )}
+          {refs.length > 0 && (
+            <div className="drawer-sec">
+              <h3>Reference documents</h3>
+              <ul className="drawer-refs">
+                {refs.map((r, i) => (
+                  <li key={`${i}-${r}`}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {action.note && (
+            <div className="drawer-sec">
+              <h3>Note</h3>
+              <p className="drawer-note">{action.note}</p>
             </div>
           )}
           {next.length > 0 && (

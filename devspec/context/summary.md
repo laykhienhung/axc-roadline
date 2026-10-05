@@ -1,6 +1,6 @@
 # Context: roadline
 
-**Does**: Internal web view of the AXC team's annual objectives & action plan. Anyone with the link imports the plan workbook (`.xlsx` AXC template, or a flat `.csv`); the server validates it, asks once what new words mean (status / quarter / due values) and saves those mappings, then stores the plan for everyone. The page shows a month/quarter timeline of topics per target (plus a Next-year column), a detail page per target, and an auto-ranked "next actions" list. Read-only viewer — the workbook stays the source of truth.
+**Does**: Internal web view of the AXC team's annual objectives & action plan. People sign in with a local account (open sign-up as viewer; an admin sets editor/admin roles, resets passwords and disables accounts on `/admin`, which also shows the import log). Editors import the plan workbook (`.xlsx` AXC template 2.x with targets or 4.2 with objectives, or a flat `.csv`); the server validates it, asks once what new words mean (status / quarter / due values) and saves those mappings, then stores the plan for everyone. The page shows a month/quarter timeline of topics per target (plus a Next-year column), a detail page per target, and an auto-ranked "next actions" list. Read-only viewer — the workbook stays the source of truth.
 
 **Stack**: TypeScript (strict) everywhere. Client: React 19 + React Router 7, built with Vite 6. Server: Node 22 + Express 5 + multer 2 (uploads). Parsing: SheetJS `xlsx` 0.20.3 (from cdn.sheetjs.com, `package.json`). Tests: Vitest 3 + supertest + Testing Library (jsdom). Lint: ESLint 9 + typescript-eslint, Prettier.
 
@@ -21,6 +21,8 @@
   - run:   `npm start` (`node dist/server/index.js`; env `PORT`=3000, `DATA_DIR`=./data, `CLIENT_DIR`)
   - dev:   `npm run dev` (tsx watch server + vite with `/api` proxy, `vite.config.ts`)
 
-**Database**: none — plan and mappings are JSON files in `DATA_DIR`.
+**Database**: PostgreSQL 17 schema `roadline` when `DATABASE_URL` is set; JSON files in
+`DATA_DIR` remain the fallback used by automated tests. PostgreSQL stores the newest 10
+plans, value mappings, remembered template versions, and the import audit log.
 **Graph**: none — `code-review-graph` CLI is installed but no graph MCP was connected; the repo (~2.8k lines) was scanned directly.
 **Scanned**: 2026-09-29, after `roadline-v1` (archived at `devspec/archive/roadline-v1/`).

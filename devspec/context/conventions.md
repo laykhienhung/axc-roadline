@@ -6,6 +6,7 @@
 
 | Area | Standard |
 |------|----------|
+| **Persistence** | Use `FileStorage` when `DATABASE_URL` is unset; otherwise use one `pg` `Pool` from `src/server/db.ts` and PostgreSQL schema `roadline` selected by URL `options=-csearch_path%3Droadline`. Migrations are forward-only `migrations/<timestamp>_<name>.sql` files with `-- Up Migration` only, run via `npm run db:migrate` (or `DB_MIGRATE_ON_START=1`). Database names are snake_case plural; indexes are `<table>_<col>_idx`; use `timestamptz` for times, `jsonb` for documents, `bigint identity` keys, and lower-case emails in `text`. |
 | **Language** | TypeScript `strict: true` (`tsconfig.json`, `tsconfig.server.json`). No `any` in app code |
 | **Naming** | Files kebab-case (`parse-axc.ts`, `import-mapping-dialog.tsx`, `use-plan.ts`); components PascalCase (`TimelineGrid`); types/interfaces PascalCase; functions camelCase; hooks `use*` in `src/client/use-*.ts` |
 | **Layout** | Pure logic in `src/shared/` (no DOM, no Node APIs); HTTP, files and SheetJS only in `src/server/`; UI in `src/client/` → `pages/*-page.tsx` compose `components/*.tsx`; fetch calls only in `src/client/api.ts` |

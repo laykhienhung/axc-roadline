@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: { '/api/': 'http://localhost:3000' },
+    proxy: { '/api/': 'http://localhost:3000', '/auth/': 'http://localhost:3000' },
     // Let the dev server answer through an ngrok tunnel (`ngrok http 5173`); a leading dot allows subdomains.
     allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.dev', '.ngrok.io'],
   },

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import type { Me } from '../../shared/auth';
 import type { Plan } from '../../shared/model';
 import { fiscalRange, formatDateTime } from '../format';
+import { UserMenu } from './user-menu';
 
 /** Logo mark + wordmark, shared by both page headers. */
 export function Brand() {
@@ -26,7 +28,15 @@ export function Brand() {
 export const planMeta = (plan: Plan) =>
   `${fiscalRange(plan)} · from ${plan.source.fileName} · updated ${formatDateTime(plan.source.importedAt)}`;
 
-export function AppHeader({ plan, actions }: { plan: Plan | null; actions: ReactNode }) {
+export function AppHeader({
+  plan,
+  actions,
+  me,
+}: {
+  plan: Plan | null;
+  actions: ReactNode;
+  me: Me;
+}) {
   return (
     <header className="app-header">
       <Brand />
@@ -37,6 +47,7 @@ export function AppHeader({ plan, actions }: { plan: Plan | null; actions: React
       </div>
       <div className="spacer" />
       {actions}
+      <UserMenu me={me} />
     </header>
   );
 }

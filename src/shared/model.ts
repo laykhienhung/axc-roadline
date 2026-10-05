@@ -20,6 +20,23 @@ export interface Action {
   status: Status;
   /** The status text as written in the file ("" when blank). */
   statusWord: string;
+  /** The objective detail this action belongs to ("1.1", template 4.2); absent for 2.x. */
+  detailId?: string | null;
+  partners?: string | null;
+  /** 0..100, null when blank. */
+  percent?: number | null;
+  /** Reference document names ("a; b; c" → ["a", "b", "c"]). */
+  references?: string[];
+  note?: string | null;
+}
+
+/** A template 4.2 "objective detail" row (`1.1  Title  Goal: … Needs first: … JD: …`). */
+export interface Detail {
+  id: string;
+  title: string;
+  goal: string | null;
+  needsFirst: string | null;
+  jd: string | null;
 }
 
 export interface Risk {
@@ -50,6 +67,9 @@ export interface Target {
   risks: Risk[];
   changes: ChangeEntry[];
   actions: Action[];
+  /** Where the weight came from; absent = 'file'. */
+  weightSource?: 'file' | 'equal';
+  details?: Detail[];
 }
 
 export interface Plan {
@@ -58,6 +78,10 @@ export interface Plan {
   templateVersion: string | null;
   source: { fileName: string; importedAt: string };
   targets: Target[];
+  /** `T1 - …` sheets (2.x) or `O1 - …` sheets (4.2); absent = 'targets'. */
+  layout?: 'targets' | 'objectives';
+  /** Share of actions Done, or the average action %; absent = 'done'. */
+  progressBy?: 'done' | 'percent';
 }
 
 export interface Problem {

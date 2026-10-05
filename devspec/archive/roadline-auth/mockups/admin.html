@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roadline — Admin · Users (mockup)</title>
+<style>
+/* Tokens copied from src/client/styles.css :root (CRT arcade theme) */
+:root{color-scheme:dark;--bg:#0f1320;--surface:#161b2e;--surface-2:#131931;--line:#2d3558;--line-soft:#222a47;--line-strong:#3f4a78;--text:#d7e0ff;--text-2:#b3bde6;--muted:#8b95c0;--faint:#56608c;--ink:#7dff9b;--on-ink:#0f1320;--link:#7dff9b;--chip:#222a47;
+--s-on_track-fg:#7dff9b;--s-on_track-bg:#15332a;--s-done-fg:#8dbcff;--s-done-bg:#172a4d;--s-not_started-fg:#b3bde6;--s-not_started-bg:#262d4a;--s-behind-fg:#ff8aa2;--s-behind-bg:#3d1b2a;--s-at_risk-fg:#ffcc4d;--s-at_risk-bg:#3a3016;
+--font-body:'Cascadia Mono',Consolas,ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 var(--font-body);color:var(--text);background:var(--bg)}
+h1,h2,h3{margin:0;font-weight:600}h2{font-size:20px}h3{font-size:15px}
+.muted{color:var(--muted)}.small{font-size:12px}.spacer{flex:1}
+/* existing classes from styles.css */
+.app-header{height:64px;padding:0 32px;display:flex;align-items:center;gap:20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;flex:none}.wordmark{font-size:20px;font-weight:600}
+.divider{width:1px;height:28px;background:var(--line);flex:none}
+.crumbs{display:flex;align-items:center;gap:8px;font-size:14px}.crumbs a{color:var(--link);font-weight:500;text-decoration:none}.crumbs .sep{color:var(--faint)}.crumbs .here{color:var(--text-2)}
+.btn{height:40px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font:500 14px var(--font-body);cursor:pointer;white-space:nowrap}
+.btn.primary{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.btn.sm{height:32px;padding:0 10px;font-size:13px}
+.btn:disabled{opacity:.6;cursor:progress}
+.card{background:var(--surface);border:1px solid var(--line)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:2px 9px;white-space:nowrap}
+.tone-on_track{background:var(--s-on_track-bg);color:var(--s-on_track-fg)}
+.tone-done{background:var(--s-done-bg);color:var(--s-done-fg)}
+.tone-not_started{background:var(--s-not_started-bg);color:var(--s-not_started-fg)}
+.tone-behind{background:var(--s-behind-bg);color:var(--s-behind-fg)}
+.tone-at_risk{background:var(--s-at_risk-bg);color:var(--s-at_risk-fg)}
+.seg{display:inline-flex;padding:3px;gap:2px;background:var(--chip)}
+.seg button{height:30px;padding:0 12px;border:0;background:transparent;color:var(--text-2);font:500 13px var(--font-body);cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--on-ink);font-weight:600}
+main{padding:28px 32px 32px;display:flex;flex-direction:column;gap:24px}
+/* user chip (approved in header-roles.html) */
+.user-chip{height:40px;padding:0 10px 0 4px;display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font:500 13px var(--font-body)}
+.avatar{width:30px;height:30px;background:var(--chip);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex:none}
+
+/* NEW: admin page */
+.page-title{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.page-title p{margin:4px 0 0;color:var(--text-2)}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line)}
+.tabs a{padding:10px 16px;color:var(--text-2);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a.on{color:var(--ink);border-color:var(--ink);font-weight:600}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
+.search{height:36px;width:280px;max-width:100%;padding:0 12px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text);font:13px var(--font-body)}
+table.users{width:100%;border-collapse:collapse}
+.users th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:10px 16px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.04em}
+.users td{padding:12px 16px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.users tr.off td{opacity:.55}
+.who{display:flex;align-items:center;gap:10px}.who div{display:flex;flex-direction:column}.who small{color:var(--muted);font-size:12px}
+.role-sel{height:32px;padding:0 8px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text);font:13px var(--font-body)}
+.lock{font-size:12px;color:var(--muted)}
+.row-actions{display:flex;gap:8px;justify-content:flex-end}
+.toast{padding:10px 14px;border-left:3px solid currentColor;font-size:13px;display:flex;gap:10px;align-items:center}
+.counts{display:flex;gap:8px}
+.audit td{font-size:13px}
+.dialog-back{position:relative;padding:40px;background:rgba(5,8,16,.7);display:flex;justify-content:center}
+.dialog{width:440px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.dialog .acts{display:flex;justify-content:flex-end;gap:10px}
+.skeleton{height:14px;background:var(--line-soft);width:60%}
+
+/* mockup scaffolding only */
+.state-label{margin:40px 32px 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);border-bottom:1px dashed var(--line);padding-bottom:6px}
+.mock-intro{margin:24px 32px 0;color:var(--muted)}
+.frame{border:1px solid var(--line-soft);margin:0 32px}
+</style>
+</head>
+<body>
+<p class="mock-intro">Mockup — roadline-auth · <b>/admin</b> (admins only). Reached from the user menu ("Admin" item, shown only to admins). Tabs: Users · Import log. Local accounts: <b>Reset password</b> sets <code>1111</code> + forces an update at next sign-in. States stacked below.</p>
+
+<!-- ============ A: Users list ============ -->
+<div class="state-label">A · Users (filled) — change role inline, reset password, sign out everywhere, disable / enable</div>
+<div class="frame">
+<header class="app-header">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div class="divider"></div>
+  <nav class="crumbs"><a href="#">Timeline</a><span class="sep">/</span><span class="here">Admin</span></nav>
+  <div class="spacer"></div>
+  <span class="user-chip"><span class="avatar">HL</span>Hung Lay <span class="badge tone-done">Admin</span> ▾</span>
+</header>
+<main>
+  <div class="page-title">
+    <div><h2>Admin</h2><p>Who can open Roadline and who can import the plan.</p></div>
+  </div>
+  <nav class="tabs"><a class="on" href="#">Users <span class="muted">6</span></a><a href="#">Import log</a></nav>
+  <section class="card" aria-label="Users">
+    <div class="toolbar">
+      <input class="search" placeholder="Search name or email…">
+      <div class="seg" role="group" aria-label="Filter by role"><button class="on">All 6</button><button>Admins 1</button><button>Editors 2</button><button>Viewers 2</button><button>Disabled 1</button></div>
+      <div class="spacer"></div>
+      <span class="small muted">People appear here once they create an account.</span>
+    </div>
+    <table class="users">
+      <tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Signed up</th><th></th></tr>
+      <tr><td><div class="who"><span class="avatar">HL</span><div><b>Hung Lay</b><small>hung.lay@cyberlogitec.com</small></div></div></td>
+          <td><span class="badge tone-done">Admin</span> <span class="lock" title="Set by ADMIN_EMAILS on the server">🔒 from server settings</span></td>
+          <td>today 09:12</td><td>1 Oct 2026</td><td class="row-actions"><span class="small muted">You</span></td></tr>
+      <tr><td><div class="who"><span class="avatar">AN</span><div><b>An Nguyen</b><small>an.nguyen@cyberlogitec.com</small></div></div></td>
+          <td><select class="role-sel" aria-label="Role for An Nguyen"><option>Viewer</option><option selected>Editor</option><option>Admin</option></select></td>
+          <td>today 08:40</td><td>1 Oct 2026</td><td class="row-actions"><button class="btn sm">Reset password</button><button class="btn sm">Sign out everywhere</button><button class="btn sm">Disable</button></td></tr>
+      <tr><td><div class="who"><span class="avatar">BT</span><div><b>Binh Tran</b><small>binh.tran@cyberlogitec.com</small></div></div></td>
+          <td><select class="role-sel"><option>Viewer</option><option selected>Editor</option><option>Admin</option></select></td>
+          <td>yesterday 17:05</td><td>1 Oct 2026</td><td class="row-actions"><button class="btn sm">Reset password</button><button class="btn sm">Sign out everywhere</button><button class="btn sm">Disable</button></td></tr>
+      <tr><td><div class="who"><span class="avatar">MT</span><div><b>Minh Tran</b><small>minh.tran@cyberlogitec.com</small></div></div></td>
+          <td><select class="role-sel"><option selected>Viewer</option><option>Editor</option><option>Admin</option></select></td>
+          <td>30 Sep 2026</td><td>30 Sep 2026</td><td class="row-actions"><button class="btn sm">Reset password</button><button class="btn sm">Sign out everywhere</button><button class="btn sm">Disable</button></td></tr>
+      <tr><td><div class="who"><span class="avatar">LP</span><div><b>Lan Pham</b><small>lan.pham@cyberlogitec.com</small></div></div> <span class="badge tone-at_risk" style="margin-left:40px">Must update password</span></td>
+          <td><select class="role-sel"><option selected>Viewer</option><option>Editor</option><option>Admin</option></select></td>
+          <td>—</td><td>30 Sep 2026</td><td class="row-actions"><button class="btn sm">Reset password</button><button class="btn sm">Sign out everywhere</button><button class="btn sm">Disable</button></td></tr>
+      <tr class="off"><td><div class="who"><span class="avatar">QV</span><div><b>Quang Vo</b><small>quang.vo@cyberlogitec.com</small></div></div></td>
+          <td><span class="badge tone-behind">Disabled</span> <span class="small muted">was Viewer</span></td>
+          <td>12 Sep 2026</td><td>10 Sep 2026</td><td class="row-actions" style="opacity:1"><button class="btn sm">Enable</button></td></tr>
+    </table>
+  </section>
+</main>
+</div>
+
+<!-- ============ B: saved toast ============ -->
+<div class="state-label">B · After changing a role — inline confirmation (saved at once, no Save button)</div>
+<div class="frame"><main style="padding-top:16px;padding-bottom:16px">
+  <div class="toast tone-on_track" role="status">✓ An Nguyen is now an <b>Editor</b>. It applies on their next page load.</div>
+  <div class="toast tone-on_track" role="status">✓ Lan Pham's password is now <b>1111</b>. Tell them — they'll set a new one at next sign-in.</div>
+  <div class="toast tone-behind" role="alert">Couldn't save the change — the database isn't reachable. The role is unchanged.</div>
+</main></div>
+
+<!-- ============ C: disable confirm ============ -->
+<div class="state-label">C · Disable — confirm dialog (also used for "Sign out everywhere")</div>
+<div class="frame"><div class="dialog-back">
+  <div class="card dialog" role="dialog" aria-label="Disable user">
+    <h3>Disable Minh Tran?</h3>
+    <p class="muted" style="margin:0">minh.tran@cyberlogitec.com is signed out on every device and can't sign in again until enabled. Nothing is deleted.</p>
+    <div class="acts"><button class="btn">Cancel</button><button class="btn primary">Disable</button></div>
+  </div>
+</div></div>
+
+<div class="state-label">C2 · Reset password — confirm dialog</div>
+<div class="frame"><div class="dialog-back">
+  <div class="card dialog" role="dialog" aria-label="Reset password">
+    <h3>Reset Lan Pham's password?</h3>
+    <p class="muted" style="margin:0">The password becomes <b style="color:var(--text)">1111</b>. lan.pham@cyberlogitec.com is signed out everywhere now and must choose a new password at next sign-in.</p>
+    <div class="acts"><button class="btn">Cancel</button><button class="btn primary">Reset to 1111</button></div>
+  </div>
+</div></div>
+
+<!-- ============ D: Import log tab ============ -->
+<div class="state-label">D · Import log tab — newest first, 50 per page</div>
+<div class="frame"><main>
+  <nav class="tabs"><a href="#">Users <span class="muted">6</span></a><a class="on" href="#">Import log</a></nav>
+  <section class="card" aria-label="Import log">
+    <table class="users audit">
+      <tr><th>When</th><th>Who</th><th>File</th><th>Outcome</th><th>Details</th></tr>
+      <tr><td>today 09:20</td><td>an.nguyen@cyberlogitec.com</td><td>AXC_..._FY2026-2027.xlsx · 212 KB</td><td><span class="badge tone-on_track">Imported</span></td><td class="muted">plan #12 (current)</td></tr>
+      <tr><td>today 09:18</td><td>an.nguyen@cyberlogitec.com</td><td>AXC_..._FY2026-2027.xlsx · 212 KB</td><td><span class="badge tone-at_risk">Needed mapping</span></td><td class="muted">3 new words</td></tr>
+      <tr><td>today 08:55</td><td>minh.tran@cyberlogitec.com</td><td>plan.xlsx · 198 KB</td><td><span class="badge tone-behind">Not allowed</span></td><td class="muted">viewer tried to import</td></tr>
+      <tr><td>yesterday 16:02</td><td>binh.tran@cyberlogitec.com</td><td>old-plan.xlsx · 180 KB</td><td><span class="badge tone-behind">Rejected</span></td><td class="muted">2 problems — "ACTION PLAN header not found" …</td></tr>
+    </table>
+    <div class="toolbar" style="border-bottom:0;border-top:1px solid var(--line-soft)"><span class="small muted">1–4 of 4</span><div class="spacer"></div><button class="btn sm" disabled>← Newer</button><button class="btn sm" disabled>Older →</button></div>
+  </section>
+</main></div>
+
+<!-- ============ E: loading / empty / not admin ============ -->
+<div class="state-label">E · Loading · empty import log · non-admin opens /admin</div>
+<div class="frame"><main>
+  <section class="card" aria-label="Users" style="padding:16px;display:flex;flex-direction:column;gap:12px"><div class="skeleton"></div><div class="skeleton" style="width:45%"></div><div class="skeleton" style="width:52%"></div><span class="small muted">Loading users…</span></section>
+  <section class="card" aria-label="Import log" style="padding:32px;text-align:center"><b>No imports yet</b><p class="muted small" style="margin:6px 0 0">Every import attempt — successful or not — shows up here.</p></section>
+  <section class="card" style="padding:32px;text-align:center"><b>Admins only</b><p class="muted small" style="margin:6px 0 12px">You're signed in as a Viewer. Ask an admin if you need access.</p><a class="btn" href="#">Back to timeline</a></section>
+</main></div>
+
+<!-- ============ F: user menu with Admin entry ============ -->
+<div class="state-label">F · User menu for an admin — "Admin" + "Change password" (everyone gets Change password) above Sign out</div>
+<div class="frame" style="padding:16px 32px">
+  <div class="card" style="width:280px;padding:14px;display:flex;flex-direction:column;gap:12px">
+    <div class="who"><span class="avatar">HL</span><div><b>Hung Lay</b><small>hung.lay@cyberlogitec.com</small></div></div>
+    <div class="small" style="color:var(--text-2);border-top:1px solid var(--line-soft);padding-top:10px">Admin — you can import the plan and manage who has access.</div>
+    <a class="btn" href="#">Admin · users &amp; import log</a>
+    <a class="btn" href="#">Change password</a>
+    <button class="btn">Sign out</button>
+  </div>
+</div>
+<div style="height:60px"></div>
+</body>
+</html>

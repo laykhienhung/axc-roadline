@@ -14,4 +14,16 @@ status: resolved
 what: MANUAL gate 10.2 — BA must approve the redesign screenshots against the mockups.
 tried: none, MANUAL gate (never self-approved). Automated checks all pass: lint, 84 tests, build, and the browser verify (run 2 clean, one CSS fix applied in run 1 — see verify/fixes.md).
 needs: BA reviews devspec/changes/roadline-v2/verify/*.jpg against mockups/*.html; ticks 10.2 in tasks.md; sets tasks.yml roadline-v2 status blocked → pending; re-run the worker to finish (done + archive).
-status: open
+status: resolved
+
+## roadline-auth · 11. Real database and visual sign-off · 2026-10-01T12:49:05Z
+what: MANUAL gate 11.2 — BA approves the screenshots in devspec/changes/roadline-auth/verify/ (sign-in, sign-up, update password, headers by role, admin users + import log).
+tried: none, MANUAL gate (never self-approved). Everything automated passes: lint, 152 tests, build; browser verify against all five mockups (verify/fixes.md — every mismatch found was fixed, re-check clean); 11.1 run on postgres.roadline at the user's instruction.
+needs: BA reviews verify/*.png against mockups/*.html; ticks "- [ ] 11.2 MANUAL" in devspec/changes/roadline-auth/tasks.md; sets tasks.yml roadline-auth status blocked → pending; re-run the worker to finish (done + archive).
+status: resolved
+
+## roadline-template-v4 · 9. Visual sign-off · 2026-10-01T13:46:15Z
+what: MANUAL gate 9.1 — BA approves the screenshots in devspec/changes/roadline-template-v4/verify/ (objective page O1/O2, timeline, drawer O1-2 / O1-5, 2.x page unchanged).
+tried: none, MANUAL gate (never self-approved). Automated checks pass: lint, 189 tests, build; browser verify against both mockups (verify/fixes.md — no mismatches left); import flow checked (needs mapping → mapped → remembered → 2.x still fine).
+needs: BA reviews verify/*.png against mockups/*.html; ticks "- [ ] 9.1 MANUAL" in tasks.md; sets roadline-template-v4 status blocked → pending; re-run the worker to finish (done + archive).
+status: resolved

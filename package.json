@@ -9,11 +9,15 @@
     "build": "vite build && tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",
     "test": "vitest run",
+    "db:migrate": "tsx src/server/migrate.ts",
+    "db:import-files": "tsx src/server/import-files.ts",
     "lint": "eslint . && prettier --check --no-error-on-unmatched-pattern \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "express": "^5.1.0",
     "multer": "^2.0.2",
+    "node-pg-migrate": "^9.0.0",
+    "pg": "^8.23.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0",
@@ -25,6 +29,7 @@
     "@types/express": "^5.0.3",
     "@types/multer": "^1.4.13",
     "@types/node": "^22.15.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@types/supertest": "^6.0.3",

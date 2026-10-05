@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roadline — Sign in (mockup)</title>
+<style>
+/* Tokens copied from src/client/styles.css :root (CRT arcade theme) */
+:root{color-scheme:dark;--bg:#0f1320;--surface:#161b2e;--surface-2:#131931;--line:#2d3558;--line-soft:#222a47;--line-strong:#3f4a78;--text:#d7e0ff;--text-2:#b3bde6;--muted:#8b95c0;--faint:#56608c;--ink:#7dff9b;--on-ink:#0f1320;--link:#7dff9b;--chip:#222a47;
+--s-at_risk-fg:#ffcc4d;--s-at_risk-bg:#3a3016;--s-behind-fg:#ff8aa2;--s-behind-bg:#3d1b2a;--s-on_track-fg:#7dff9b;--s-on_track-bg:#15332a;
+--font-body:'Cascadia Mono',Consolas,ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 var(--font-body);color:var(--text);background:var(--bg)}
+h1,h2{margin:0;font-weight:600}
+.muted{color:var(--muted)}.small{font-size:12px}
+/* existing: .brand .wordmark .btn .btn.primary .card .tone-* */
+.brand{display:flex;align-items:center;gap:10px}
+.wordmark{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.btn{height:40px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font:500 14px var(--font-body);cursor:pointer;white-space:nowrap}
+.btn.primary{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.btn:disabled{opacity:.6;cursor:progress}
+.card{background:var(--surface);border:1px solid var(--line)}
+.tone-at_risk{background:var(--s-at_risk-bg);color:var(--s-at_risk-fg)}
+.tone-behind{background:var(--s-behind-bg);color:var(--s-behind-fg)}
+.tone-on_track{background:var(--s-on_track-bg);color:var(--s-on_track-fg)}
+
+/* NEW: auth pages (sign-in / sign-up / update password share these) */
+.auth{min-height:600px;display:flex;align-items:center;justify-content:center;padding:32px}
+.auth-card{width:100%;max-width:420px;padding:32px;display:flex;flex-direction:column;gap:20px}
+.auth-card h2{font-size:24px;font-weight:500}
+.auth-card .intro{margin:6px 0 0;color:var(--text-2);line-height:1.6}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;color:var(--text-2)}
+.field input{height:42px;padding:0 12px;border:1px solid var(--line-strong);background:var(--bg);color:var(--text);font:14px var(--font-body)}
+.field input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+.field.bad input{border-color:var(--s-behind-fg)}
+.field .err{font-size:12px;color:var(--s-behind-fg)}
+.field .hint{font-size:12px;color:var(--muted)}
+.auth-card form{display:flex;flex-direction:column;gap:14px}
+.auth-card .btn.primary{width:100%;height:44px}
+.notice{padding:12px 14px;border-left:3px solid currentColor;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.notice span{color:var(--text-2)}
+.foot{border-top:1px solid var(--line-soft);padding-top:14px;display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.foot a{color:var(--link);text-decoration:none;font-weight:500}
+.spin{width:14px;height:14px;border:2px solid var(--on-ink);border-right-color:transparent;border-radius:50%;display:inline-block}
+
+/* mockup scaffolding only */
+.state-label{max-width:1100px;margin:40px auto 0;padding:0 32px 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);border-bottom:1px dashed var(--line)}
+.mock-intro{max-width:1100px;margin:24px auto 0;padding:0 32px;color:var(--muted)}
+</style>
+</head>
+<body>
+<p class="mock-intro">Mockup — roadline-auth · <b>/signin</b>. Full page, no app header. Every signed-out page request lands here with <code>?next=</code>. Local accounts (email + password). States stacked below.</p>
+
+<!-- 1 default -->
+<div class="state-label">1 · Default</div>
+<div class="auth"><section class="card auth-card" aria-label="Sign in">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div><h2>Sign in</h2><p class="intro">AXC objectives &amp; action plan.</p></div>
+  <form>
+    <div class="field"><label for="e1">Email</label><input id="e1" type="email" autocomplete="username" placeholder="you@company.com"></div>
+    <div class="field"><label for="p1">Password</label><input id="p1" type="password" autocomplete="current-password"></div>
+    <button class="btn primary" type="submit">Sign in</button>
+  </form>
+  <div class="foot"><span>No account yet?</span><a href="#">Create an account →</a></div>
+</section></div>
+
+<!-- 2 submitting -->
+<div class="state-label">2 · Submitting (button disabled)</div>
+<div class="auth"><section class="card auth-card" aria-label="Sign in">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div><h2>Sign in</h2><p class="intro">AXC objectives &amp; action plan.</p></div>
+  <form>
+    <div class="field"><label>Email</label><input value="an.nguyen@cyberlogitec.com" disabled></div>
+    <div class="field"><label>Password</label><input type="password" value="••••••••••••" disabled></div>
+    <button class="btn primary" disabled><span class="spin"></span>Signing in…</button>
+  </form>
+  <div class="foot"><span>No account yet?</span><a href="#">Create an account →</a></div>
+</section></div>
+
+<!-- 3 wrong credentials -->
+<div class="state-label">3 · Wrong email or password (same message for both — doesn't reveal which accounts exist)</div>
+<div class="auth"><section class="card auth-card" aria-label="Sign in">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div><h2>Sign in</h2><p class="intro">AXC objectives &amp; action plan.</p></div>
+  <div class="notice tone-behind" role="alert"><b>Email or password is wrong</b><span>Check both and try again. Forgot your password? Ask an admin to reset it.</span></div>
+  <form>
+    <div class="field"><label>Email</label><input value="an.nguyen@cyberlogitec.com"></div>
+    <div class="field"><label>Password</label><input type="password" value=""></div>
+    <button class="btn primary">Sign in</button>
+  </form>
+  <div class="foot"><span>No account yet?</span><a href="#">Create an account →</a></div>
+</section></div>
+
+<!-- 4 disabled -->
+<div class="state-label">4 · Account disabled by an admin (correct password)</div>
+<div class="auth"><section class="card auth-card" aria-label="Sign in">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div><h2>Sign in</h2><p class="intro">AXC objectives &amp; action plan.</p></div>
+  <div class="notice tone-at_risk" role="alert"><b>Your access is turned off</b><span>An admin has disabled this account. Ask an admin to enable it.</span></div>
+  <form>
+    <div class="field"><label>Email</label><input value="quang.vo@cyberlogitec.com"></div>
+    <div class="field"><label>Password</label><input type="password"></div>
+    <button class="btn primary">Sign in</button>
+  </form>
+  <div class="foot"><span>No account yet?</span><a href="#">Create an account →</a></div>
+</section></div>
+
+<!-- 5 signed out -->
+<div class="state-label">5 · After "Sign out" (?signedout=1)</div>
+<div class="auth"><section class="card auth-card" aria-label="Sign in">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div><h2>You're signed out</h2><p class="intro">Sign in again to view the plan.</p></div>
+  <form>
+    <div class="field"><label>Email</label><input></div>
+    <div class="field"><label>Password</label><input type="password"></div>
+    <button class="btn primary">Sign in</button>
+  </form>
+  <div class="foot"><span>No account yet?</span><a href="#">Create an account →</a></div>
+</section></div>
+
+<!-- 6 session expired -->
+<div class="state-label">6 · Session expired / signed out elsewhere (?expired=1)</div>
+<div class="auth"><section class="card auth-card" aria-label="Sign in">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" fill="#1f2a4a"/><path d="M6 14h16" stroke="#7dff9b" stroke-width="2" stroke-dasharray="3 3"/><rect x="18" y="11" width="6" height="6" fill="#ffcc4d"/></svg><span class="wordmark">Roadline</span></div>
+  <div><h2>Sign in</h2><p class="intro">AXC objectives &amp; action plan.</p></div>
+  <div class="notice tone-at_risk" role="status"><b>Your session ended</b><span>Sign in again to continue where you were.</span></div>
+  <form>
+    <div class="field"><label>Email</label><input></div>
+    <div class="field"><label>Password</label><input type="password"></div>
+    <button class="btn primary">Sign in</button>
+  </form>
+  <div class="foot"><span>No account yet?</span><a href="#">Create an account →</a></div>
+</section></div>
+<div style="height:60px"></div>
+</body>
+</html>

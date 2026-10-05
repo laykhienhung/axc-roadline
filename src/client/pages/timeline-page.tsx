@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { canImport, type Me } from '../../shared/auth';
 import type { Mappings, Plan, UnknownValue } from '../../shared/model';
 import { uploadPlan } from '../api';
 import { ActionDrawer } from '../components/action-drawer';
@@ -11,6 +12,7 @@ import {
   ImportError,
   type ImportState,
   UploadingState,
+  ViewerEmptyState,
 } from '../components/import-states';
 import { type ActionRef, TimelineTree } from '../components/timeline-tree';
 import type { PlanState } from '../use-plan';
@@ -28,9 +30,11 @@ interface Pending {
 export function TimelinePage({
   state,
   replace,
+  me,
 }: {
   state: PlanState;
   replace: (plan: Plan) => void;
+  me: Me;
 }) {
   const today = useToday();
   const [selected, setSelected] = useState<ActionRef | null>(null);
@@ -39,6 +43,7 @@ export function TimelinePage({
   const [pending, setPending] = useState<Pending | null>(null);
   const [notes, setNotes] = useState<Notes>(NO_NOTES);
   const plan = state.status === 'ready' ? state.plan : null;
+  const editable = canImport(me.role);
   const busy = imp.kind === 'uploading' || pending !== null;
 
   async function send(file: File, mapping?: Omit<Mappings, 'seenVersions'>) {
@@ -64,7 +69,31 @@ export function TimelinePage({
 
   return (
     <>
-      <AppHeader plan={plan} actions={<ImportButton onFile={onFile} disabled={busy} />} />
+      <AppHeader
+        plan={plan}
+        me={me}
+        actions={
+          editable ? (
+            <ImportButton onFile={onFile} disabled={busy} />
+          ) : (
+            <span className="readonly">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span className="lbl">Read-only</span>
+            </span>
+          )
+        }
+      />
       <main className={plan && selected ? 'with-drawer' : undefined}>
         <ImportNotes notes={notes} />
         {imp.kind === 'uploading' && <UploadingState fileName={imp.fileName} />}
@@ -83,7 +112,8 @@ export function TimelinePage({
             <span>{state.message}</span>
           </section>
         )}
-        {state.status === 'empty' && <EmptyState onFile={onFile} busy={busy} />}
+        {state.status === 'empty' &&
+          (editable ? <EmptyState onFile={onFile} busy={busy} /> : <ViewerEmptyState />)}
         {plan && (
           <TimelineTree plan={plan} today={today} selected={selected} onSelect={setSelected} />
         )}

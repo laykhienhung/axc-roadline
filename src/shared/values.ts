@@ -58,11 +58,52 @@ export function parseWeight(cell: Cell | undefined): number | null {
   return pct || n > 1 ? n / 100 : n;
 }
 
-/** 2 → "2.0", "2.0" → "2.0". */
+/** 2 → "2.0", "2.0" → "2.0", "4.2 (01/10/2026)" → "4.2" (the leading x.y). */
 export function versionText(cell: Cell | undefined): string | null {
   if (typeof cell === 'number') return Number.isInteger(cell) ? cell.toFixed(1) : String(cell);
   const t = text(cell);
-  return t === '' ? null : t;
+  if (t === '') return null;
+  const lead = /^(\d+(?:\.\d+)+)(?=\s|\(|$)/.exec(t);
+  return lead ? lead[1] : t;
+}
+
+/**
+ * An action's % cell → 0..100. A number 0..1 is a fraction (Excel % cell), 1 < n ≤ 100 is a
+ * percent, "40%" is a percent. Blank → null; anything else → 'invalid'.
+ */
+export function parsePercent(cell: Cell | undefined): number | null | 'invalid' {
+  const t = text(cell);
+  if (t === '') return null;
+  const pct = t.endsWith('%');
+  const n = Number(t.replace(/%$/, '').trim());
+  if (!Number.isFinite(n) || n < 0) return 'invalid';
+  const value = pct ? n : n <= 1 ? n * 100 : n;
+  if (value > 100) return 'invalid';
+  return Math.round(value * 1e6) / 1e6;
+}
+
+/** The first month of the fiscal year: Excel date serial, `Date`, "Oct 2026" or "2026-10-01". */
+export function parseStartMonth(
+  cell: Cell | Date | undefined
+): { startYear: number; startMonth: number } | null {
+  if (cell instanceof Date) {
+    if (Number.isNaN(cell.getTime())) return null;
+    return { startYear: cell.getFullYear(), startMonth: cell.getMonth() + 1 };
+  }
+  if (typeof cell === 'number') {
+    if (cell <= 20000 || cell >= 80000) return null;
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(cell) * 86400000);
+    return { startYear: d.getUTCFullYear(), startMonth: d.getUTCMonth() + 1 };
+  }
+  const t = text(cell).toLowerCase();
+  const iso = /^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/.exec(t);
+  if (iso) {
+    const month = +iso[2];
+    return month >= 1 && month <= 12 ? { startYear: +iso[1], startMonth: month } : null;
+  }
+  const named = /^([a-z]+)\.?\s+(\d{4})$/.exec(t);
+  const month = named ? monthFromName(named[1]) : null;
+  return named && month ? { startYear: +named[2], startMonth: month } : null;
 }
 
 export function compareVersion(a: string, b: string): number {
